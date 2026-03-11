@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 import yargs from 'yargs'
-import inkjet from 'inkjet'
+import sharp from 'sharp'
 import { hideBin } from 'yargs/helpers'
 import { encode } from 'blurhash'
-import fs from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { imageSizeFromFile } from 'image-size/fromFile'
 
 /**
  * Create a string for blur-hash.
@@ -14,15 +12,12 @@ import { imageSizeFromFile } from 'image-size/fromFile'
 export const createString = async (
     filepath:string,
 ):Promise<string> => {
-    const data = await fs.readFile(filepath)
-    const { width, height } = await imageSizeFromFile(filepath)
+    const { data, info } = await sharp(filepath)
+        .raw()
+        .ensureAlpha()
+        .toBuffer({ resolveWithObject: true })
 
-    return new Promise((resolve, reject) => {
-        inkjet.decode(data, function (err, decoded:{ data:Uint8ClampedArray }) {
-            if (err) return reject(err)
-            resolve(encode(decoded.data, width, height, 4, 4))
-        })
-    })
+    return encode(new Uint8ClampedArray(data.buffer), info.width, info.height, 4, 4)
 }
 
 const pathToThisFile = resolve(fileURLToPath(import.meta.url))

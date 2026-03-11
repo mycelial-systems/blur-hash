@@ -60,11 +60,13 @@
     "blurhash": "^2.0.5",
     "image-size": "^2.0.2",
     "inkjet": "^3.0.0",
+    "sharp": "^0.34.5",
     "yargs": "^18.0.0"
   },
   "devDependencies": {
     "@substrate-system/dom": "^0.1.13",
     "@substrate-system/tapzero": "^0.10.16",
+    "@types/sharp": "^0.31.1",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "auto-changelog": "^2.4.0",
