@@ -68,7 +68,7 @@
   "devDependencies": {
     "@substrate-system/dom": "^0.1.13",
     "@substrate-system/tapzero": "^0.10.16",
-    "@types/sharp": "^0.31.1",
+    "@types/sharp": "^0.32.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "auto-changelog": "^2.4.0",
