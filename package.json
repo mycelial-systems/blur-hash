@@ -73,7 +73,7 @@
     "@typescript-eslint/parser": "^8.0.0",
     "auto-changelog": "^2.4.0",
     "cssnano": "^7.0.3",
-    "esbuild": "^0.27.2",
+    "esbuild": "^0.28.0",
     "eslint": "^8.57.0",
     "eslint-config-standard": "^17.1.0",
     "markdown-toc": "^1.2.0",
