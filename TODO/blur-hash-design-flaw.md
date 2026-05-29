@@ -140,6 +140,95 @@ expose (1) for callers who want a specific decode size. Decoding small is
 correct in all cases for a placeholder; the only thing the source
 dimensions are legitimately needed for is reserving layout space.
 
+## Decision (2026-05-29)
+
+Fix approach: an internal, unconditional decode-resolution cap (option 2),
+plus a `requestAnimationFrame` deferral of the decode. No new attributes;
+`width`/`height` stay layout-only. The opt-in decode-size attribute (option
+1) and a Web Worker / `OffscreenCanvas` (option 3) are both rejected.
+
+### Cap
+
+- Decode and canvas buffer are capped to 32px on the long edge, short edge
+  scaled to preserve aspect ratio, floor of 1px.
+- No upscaling: if the long edge is already <= 32, decode at the real size.
+- A single pure helper, `decodeDimensions(width, height, cap = 32)`, is the
+  source of truth for both `index.ts` and `html.ts`.
+
+### Cost model (corrected)
+
+Decode is `O(W*H*Cx*Cy)`, not `O(W*H)` -- the reference `blurhash` decode
+runs `Cx*Cy` iterations with two `Math.cos` per output pixel and no
+precomputation.
+
+- Full res 1200x630 is the `W*H` blowup that produced the ~6s block.
+- Capped 32x17 removes ~1390x of the `W*H` factor: a 4x4 hash is ~0.5-1ms,
+  a worst-case 9x9 hash is ~88k cos calls, a few ms.
+- The cap alone fixes the reported bug. The rAF deferral exists because even
+  capped, a synchronous batch of N high-component hashes can still reach
+  ~100ms. The justification is the batch, not any single decode.
+
+### Canvas buffer size is a correctness invariant
+
+`putImageData` fills only the region matching the ImageData's dimensions. If
+the `<canvas>` intrinsic `width`/`height` (set in `html.ts`) differ from the
+`createImageData(...)` size (in `index.ts`), the result is a partially
+filled canvas -- a small blur in the top-left, blank elsewhere -- then
+CSS-stretched across the host. So `html.ts` MUST size the canvas to the
+capped decode dims, exactly equal to the `createImageData` size. This is
+required, not tidying; the shared helper enforces
+`canvas-buffer-size == imageData-size`.
+
+### Deferral primitive: requestAnimationFrame
+
+- rAF runs before the next paint, so the blur still appears on the first
+  visible paint, accepting a small pre-paint cost for the batch.
+- `setTimeout` / `requestIdleCallback` run after first paint, fully off the
+  critical path, but flash one empty frame. With the cap shrinking the
+  batch, rAF (blur-on-first-paint, no flash) is the deliberate choice.
+- Chunking the batch across frames is the only thing that fully prevents a
+  pre-paint longtask; it is a non-goal here (YAGNI given the cap).
+- `sharpen()` stays synchronous -- it keys off `img` load, independent of
+  the decode -- so a fast image load is not missed.
+
+### Pending-handle lifecycle (the real complexity async adds)
+
+Once the decode is scheduled rather than inline:
+
+- Store the rAF handle on the instance.
+- A second `reset()` before it fires must `cancelAnimationFrame` the stale
+  handle and reschedule.
+- `disconnectedCallback` must cancel any pending handle.
+- The callback must bail if the element is detached (`!this.isConnected`)
+  or its canvas is gone.
+
+This cancellation discipline -- not the decode itself -- is the cost of
+going async. It is in scope and accounted for up front.
+
+### Definition of Done
+
+1. `<blur-hash>` decodes the placeholder at <= 32px on the long edge (aspect
+   preserved, min 1px, never upscaled), regardless of `width`/`height`, in
+   both `connectedCallback` and `reset`.
+2. The canvas intrinsic dimensions equal the `createImageData` size exactly
+   (via the shared helper); rendered output is visually identical to before.
+3. The decode + paint run in a `requestAnimationFrame` callback, with handle
+   cancellation on re-`reset()` and `disconnectedCallback`, and a detached
+   bail-out.
+4. `width`/`height` remain layout-only; no new public API; existing tests
+   stay green.
+5. The pure `decodeDimensions` helper is unit-tested (aspect preservation,
+   long-edge cap, 1px floor, no upscaling, square input). CHANGELOG
+   documents the behavior change.
+
+### Out of scope
+
+- A new decode-size attribute (rejected: small is always correct).
+- Web Worker / `OffscreenCanvas`.
+- Cross-frame chunking of the decode batch.
+- The pre-existing unitless-`width` quirk (`this.style.width = '100'` is
+  ignored by browsers); flagged for a separate follow-up.
+
 ## References
 
 - Component: `node_modules/@substrate-system/blur-hash/dist/index.js`
