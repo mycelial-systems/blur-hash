@@ -54,11 +54,11 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         if (attrs.height) this.style.height = '' + attrs.height
 
         const width = (attrs.width ?
-            (typeof attrs.width === 'string' ? parseInt(attrs.width) : attrs.width) :
-            parseInt(this.style.width))
+            (typeof attrs.width === 'string' ? parseInt(attrs.width, 10) : attrs.width) :
+            parseInt(this.style.width, 10))
         const height = (attrs.height ?
-            (typeof attrs.height === 'string' ? parseInt(attrs.height) : attrs.height) :
-            parseInt(this.style.height))
+            (typeof attrs.height === 'string' ? parseInt(attrs.height, 10) : attrs.height) :
+            parseInt(this.style.height, 10))
 
         this.innerHTML = BlurHash.html(Object.assign(attrs, { width, height }))
 
