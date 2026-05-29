@@ -172,4 +172,16 @@ test('blur-hash removed before its frame fires does not throw', async t => {
     // Wait one frame: the cancelled callback must NOT run or throw.
     await new Promise(resolve => requestAnimationFrame(() => resolve(null)))
     t.ok(true, 'mount + immediate remove did not throw')
+
+    // Verify the canvas was not painted (stays transparent).
+    const canvas = host.querySelector('canvas') as HTMLCanvasElement
+    t.ok(canvas, 'canvas exists in detached element')
+    const ctx = canvas.getContext('2d')!
+    const alpha = ctx.getImageData(
+        canvas.width - 1,
+        canvas.height - 1,
+        1,
+        1
+    ).data[3]
+    t.equal(alpha, 0, 'detached element was not painted (callback bailed)')
 })
