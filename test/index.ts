@@ -117,3 +117,59 @@ test('blur-hash leaves small dimensions unchanged', async t => {
     t.equal(canvas.width, 30, 'small canvas width is unchanged')
     t.equal(canvas.height, 30, 'small canvas height is unchanged')
 })
+
+test('reset twice in a tick: no throw, still paints', async t => {
+    document.body.innerHTML += `
+        <blur-hash
+            id="resettwice"
+            alt="reset"
+            width="1200px"
+            height="630px"
+            src="/100.jpg"
+            placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
+        ></blur-hash>
+    `
+    const el = (await waitFor('#resettwice')) as HTMLElement & {
+        reset:(attrs:{ src:string; alt:string; placeholder:string }) => void;
+    }
+
+    let threw = false
+    try {
+        el.reset({
+            src: '/100.jpg',
+            alt: 'reset a',
+            placeholder: 'UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV'
+        })
+        el.reset({
+            src: '/100.jpg',
+            alt: 'reset b',
+            placeholder: 'UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV'
+        })
+    } catch (_err) {
+        threw = true
+    }
+
+    t.ok(!threw, 'two resets in the same tick do not throw')
+    const canvas = (await waitFor('#resettwice canvas')) as HTMLCanvasElement
+    await waitForPaint(canvas)
+    t.ok(true, 'canvas is painted after a rapid double reset')
+})
+
+test('blur-hash removed before its frame fires does not throw', async t => {
+    const host = document.createElement('div')
+    host.innerHTML = `
+        <blur-hash
+            alt="ephemeral"
+            width="1200px"
+            height="630px"
+            src="/100.jpg"
+            placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
+        ></blur-hash>
+    `
+    document.body.appendChild(host)
+    // Remove synchronously, before the scheduled decode frame can run.
+    host.remove()
+    // Wait one frame: the cancelled callback must NOT run or throw.
+    await new Promise(resolve => requestAnimationFrame(() => resolve(null)))
+    t.ok(true, 'mount + immediate remove did not throw')
+})

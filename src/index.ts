@@ -26,6 +26,7 @@ export type ImgAttrs = {
 
 export class BlurHash extends WebComponent.create('blur-hash') {
     time:number
+    rafId:number|null = null
 
     constructor () {
         super()
@@ -63,13 +64,7 @@ export class BlurHash extends WebComponent.create('blur-hash') {
 
         const { placeholder, src: newSrc } = attrs
 
-        const { width: dw, height: dh } = decodeDimensions(width, height)
-        const pixels = decode(placeholder, dw, dh)
-        const canvas = this.querySelector('canvas') as HTMLCanvasElement
-        const ctx = canvas.getContext('2d')!
-        const imageData = ctx.createImageData(dw, dh)
-        imageData.data.set(pixels)
-        ctx.putImageData(imageData, 0, 0)
+        this.scheduleDecode(placeholder, width, height)
 
         this.setAttribute('src', newSrc)
         this.setAttribute('placeholder', placeholder)
@@ -79,6 +74,38 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         if (attrs.sizes) img.setAttribute('sizes', attrs.sizes)
 
         this.sharpen()
+    }
+
+    /**
+     * Decode the placeholder and paint it to the canvas on the next frame.
+     * Cancels any pending frame first, so a rapid re-call (e.g. a second
+     * `reset`) never leaves a stale decode running. Bails if the element has
+     * detached before the frame fires.
+     */
+    scheduleDecode (placeholder:string, width:number, height:number):void {
+        if (this.rafId !== null) cancelAnimationFrame(this.rafId)
+
+        const { width: dw, height: dh } = decodeDimensions(width, height)
+
+        this.rafId = requestAnimationFrame(() => {
+            this.rafId = null
+            if (!this.isConnected) return
+            const canvas = this.querySelector<HTMLCanvasElement>('canvas')
+            if (!canvas) return
+            const ctx = canvas.getContext('2d')
+            if (!ctx) return
+            const pixels = decode(placeholder, dw, dh)
+            const imageData = ctx.createImageData(dw, dh)
+            imageData.data.set(pixels)
+            ctx.putImageData(imageData, 0, 0)
+        })
+    }
+
+    disconnectedCallback ():void {
+        if (this.rafId !== null) {
+            cancelAnimationFrame(this.rafId)
+            this.rafId = null
+        }
     }
 
     sharpen () {
@@ -107,14 +134,7 @@ export class BlurHash extends WebComponent.create('blur-hash') {
             this.innerHTML = this.render()
         }
 
-        const { width: dw, height: dh } = decodeDimensions(width, height)
-        const pixels = decode(placeholder, dw, dh)
-        const canvas = this.querySelector('canvas') as HTMLCanvasElement
-        const ctx = canvas.getContext('2d')!
-        const imageData = ctx.createImageData(dw, dh)
-        imageData.data.set(pixels)
-        ctx.putImageData(imageData, 0, 0)
-
+        this.scheduleDecode(placeholder, width, height)
         this.sharpen()
     }
 
