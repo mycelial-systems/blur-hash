@@ -1,5 +1,6 @@
 import { toAttributes } from '@substrate-system/web-component/attributes'
 import type { ImgAttrs } from './index.js'
+import { decodeDimensions } from './decode-dimensions.js'
 
 export type SSRAttrs = ImgAttrs & { classes?:string }
 
@@ -19,13 +20,17 @@ export function render (attrs:SSRAttrs) {
 
     if (!placeholder) throw new Error('not placeholder')
 
+    const decodeWidth = typeof width === 'string' ? parseInt(width, 10) : width
+    const decodeHeight = typeof height === 'string' ?
+        parseInt(height, 10) :
+        height
+    const decodeSize = decodeDimensions(decodeWidth, decodeHeight)
+
     const htmlString = `<canvas
         alt="${alt}"
-        width=${width}
-        height=${height}
+        width=${decodeSize.width}
+        height=${decodeSize.height}
         class="blurry"
-        width=${width}
-        height=${height}
     ></canvas>
 
     <img class="blurry"

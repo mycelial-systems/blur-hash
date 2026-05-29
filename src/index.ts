@@ -1,6 +1,7 @@
 import { WebComponent } from '@substrate-system/web-component'
 import { decode } from 'blurhash'
 import { render } from './html.js'
+import { decodeDimensions } from './decode-dimensions.js'
 
 // for docuement.querySelector
 declare global {
@@ -62,10 +63,11 @@ export class BlurHash extends WebComponent.create('blur-hash') {
 
         const { placeholder, src: newSrc } = attrs
 
-        const pixels = decode(placeholder, width, height)
+        const { width: dw, height: dh } = decodeDimensions(width, height)
+        const pixels = decode(placeholder, dw, dh)
         const canvas = this.querySelector('canvas') as HTMLCanvasElement
         const ctx = canvas.getContext('2d')!
-        const imageData = ctx.createImageData(width, height)
+        const imageData = ctx.createImageData(dw, dh)
         imageData.data.set(pixels)
         ctx.putImageData(imageData, 0, 0)
 
@@ -105,10 +107,11 @@ export class BlurHash extends WebComponent.create('blur-hash') {
             this.innerHTML = this.render()
         }
 
-        const pixels = decode(placeholder, width, height)
+        const { width: dw, height: dh } = decodeDimensions(width, height)
+        const pixels = decode(placeholder, dw, dh)
         const canvas = this.querySelector('canvas') as HTMLCanvasElement
         const ctx = canvas.getContext('2d')!
-        const imageData = ctx.createImageData(width, height)
+        const imageData = ctx.createImageData(dw, dh)
         imageData.data.set(pixels)
         ctx.putImageData(imageData, 0, 0)
 
