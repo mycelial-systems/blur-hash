@@ -186,6 +186,57 @@ test('blur-hash removed before its frame fires does not throw', async t => {
     t.equal(alpha, 0, 'detached element was not painted (callback bailed)')
 })
 
+test('a complete image defers the sharpen swap (cross-fade)', async t => {
+    // A 1x1 transparent GIF decodes from the data URI itself, so it becomes
+    // `complete` without the (image-less) tapout server, unlike a network
+    // src which 404s here.
+    const dataUri = 'data:image/gif;base64,' +
+        'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
+    document.body.innerHTML += `
+        <blur-hash
+            id="cached"
+            alt="cached image"
+            width=30
+            height=30
+            src="${dataUri}"
+            placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
+        ></blur-hash>
+    `
+
+    const el = (await waitFor('#cached')) as BlurHash
+    const img = (await waitFor('#cached img')) as HTMLImageElement
+
+    // Drive the image to a known, fully-decoded state, then reset the reveal
+    // classes so sharpen() starts from a clean blurry frame.
+    await img.decode()
+    img.classList.add('blurry')
+    img.classList.remove('sharp')
+
+    el.sharpen()
+
+    // The fix defers the class swap behind a double rAF so the browser paints
+    // the opacity:0 (blurry) frame before opacity:1 (sharp) is applied --
+    // otherwise the opacity transition never runs. The buggy version swapped
+    // synchronously right here.
+    t.ok(img.classList.contains('blurry'),
+        'complete image is still blurry right after sharpen (deferred)')
+    t.ok(!img.classList.contains('sharp'),
+        'complete image is not sharpened synchronously')
+
+    // Let the two scheduled frames (plus a margin) elapse.
+    await new Promise(resolve => {
+        requestAnimationFrame(() =>
+            requestAnimationFrame(() =>
+                requestAnimationFrame(() => resolve(null))))
+    })
+
+    t.ok(img.classList.contains('sharp'),
+        'image becomes sharp after the blurry frame has painted')
+    t.ok(!img.classList.contains('blurry'),
+        'blurry class is removed once sharpened')
+})
+
 test('all done', () => {
     // @ts-expect-error tests
     window.testsFinished = true
