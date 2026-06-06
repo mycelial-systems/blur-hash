@@ -185,3 +185,8 @@ test('blur-hash removed before its frame fires does not throw', async t => {
     ).data[3]
     t.equal(alpha, 0, 'detached element was not painted (callback bailed)')
 })
+
+test('all done', () => {
+    // @ts-expect-error tests
+    window.testsFinished = true
+})
