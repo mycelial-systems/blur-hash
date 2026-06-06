@@ -110,14 +110,24 @@ export class BlurHash extends WebComponent.create('blur-hash') {
 
     sharpen () {
         const img = this.qs('img')!
-        if (img.complete && img.naturalWidth > 0) {
+        const toSharp = () => {
             img.classList.remove('blurry')
             img.classList.add('sharp')
+        }
+
+        if (img.complete && img.naturalWidth > 0) {
+            // The image is already decoded, so the class swap would run in
+            // this same task -- before the browser ever paints the .blurry
+            // (opacity:0) frame, and a CSS transition needs that start frame
+            // to have painted or it does not run. Defer behind a double rAF
+            // so one .blurry frame is rendered first; then the opacity fade
+            // runs. A single rAF is not enough: it fires before the current
+            // frame paints.
+            requestAnimationFrame(() => requestAnimationFrame(toSharp))
         } else {
-            img.addEventListener('load', () => {
-                img.classList.remove('blurry')
-                img.classList.add('sharp')
-            })
+            // Still loading: the swap is deferred to `load`, which fires in a
+            // later task after the .blurry frame has already painted.
+            img.addEventListener('load', toSharp)
         }
     }
 
