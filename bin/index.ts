@@ -1,29 +1,19 @@
 #!/usr/bin/env node
 import yargs from 'yargs'
-import sharp from 'sharp'
 import { hideBin } from 'yargs/helpers'
-import { encode } from 'blurhash'
+import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { encodeImage } from './photon.js'
 
 /**
- * Create a string for blur-hash.
+ * Create a blur-hash from a local image file.
  */
-export const createString = async (
-    filepath:string,
-):Promise<string> => {
-    const { data, info } = await sharp(filepath)
-        .raw()
-        .ensureAlpha()
-        .toBuffer({ resolveWithObject: true })
-
-    return encode(
-        new Uint8ClampedArray(data.buffer),
-        info.width,
-        info.height,
-        4,
-        4
-    )
+export async function createBlurhash (
+    filepath:string
+):Promise<{ hash:string; width:number; height:number }> {
+    const bytes = await readFile(filepath)
+    return encodeImage(new Uint8Array(bytes))
 }
 
 const pathToThisFile = resolve(fileURLToPath(import.meta.url))
@@ -40,6 +30,6 @@ if (isThisFileBeingRunViaCLI) {
         .argv
 
     const filename = args._[0] as string
-    const hash = await createString(filename)
-    process.stdout.write(hash + '\n')
+    const result = await createBlurhash(filename)
+    process.stdout.write(result.hash + '\n')
 }
