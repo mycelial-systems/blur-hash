@@ -2,8 +2,9 @@ node_modules
 bundle.js
 .DS_Store
 test/*.js
+bin/*.js
 dist
 .env
 public
 docs
-**/*.js
+.claude

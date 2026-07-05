@@ -6,7 +6,7 @@ import { decodeDimensions } from './decode-dimensions.js'
 // for docuement.querySelector
 declare global {
     interface HTMLElementTagNameMap {
-        'blur-hash': BlurHash
+        'blur-hash':BlurHash
     }
 }
 
