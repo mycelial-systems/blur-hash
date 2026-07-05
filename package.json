@@ -1,6 +1,6 @@
 {
   "name": "@substrate-system/blur-hash",
-  "version": "0.0.40",
+  "version": "0.0.41",
   "type": "module",
   "description": "A blurry placeholder image web component",
   "browserslist": ">= 0.25%",
