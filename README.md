@@ -40,7 +40,7 @@ as a
   * [Import CSS](#import-css)
   * [variables](#variables)
 - [Create the blur-hash string](#create-the-blur-hash-string)
-  * [Install the peer dependency](#install-the-peer-dependency)
+  * [1. Install the peer dependency](#1-install-the-peer-dependency)
   * [JS API](#js-api)
   * [From raw bytes (Cloudflare Workers)](#from-raw-bytes-cloudflare-workers)
   * [CLI](#cli)
