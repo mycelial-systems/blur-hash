@@ -33,7 +33,7 @@ if (isThisFileBeingRunViaCLI) {
         .usage('Usage: blur <filename>')
         .argv
 
-    const filename = args._[0]
+    const filename = args._[0] as string
     const hash = await createString(filename)
     process.stdout.write(hash + '\n')
 }

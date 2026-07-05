@@ -23,6 +23,7 @@
     "declarationMap": true
   },
   "include": [
+    "bin",
     "example",
     "src/**/*",
     "test",
