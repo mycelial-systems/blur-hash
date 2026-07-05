@@ -317,7 +317,3 @@ On mac os,
 ```sh
 npx blur ./my-file.jpg | pbcopy
 ```
-
-```
-/ed3d-plan-and-execute:execute-implementation-plan /Users/nick/code/blur-hash/docs/implementation-plans/2026-07-04-photon-blurhash-generation/ /Users/nick/code/blur-hash/
-```
