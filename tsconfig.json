@@ -6,7 +6,6 @@
     "target": "ES2022",
     "moduleResolution": "Bundler",
     "lib": ["ES2022", "DOM", "WebWorker"],
-    "types": ["node"],
     "allowJs": false,
     "skipLibCheck": true,
     "outDir": "dist",
