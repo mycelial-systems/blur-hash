@@ -37,7 +37,9 @@ as a [web component](https://developer.mozilla.org/en-US/docs/Web/API/Web_compon
   * [Import CSS](#import-css)
   * [variables](#variables)
 - [Create the blur-hash string](#create-the-blur-hash-string)
+  * [Install the peer dependency](#install-the-peer-dependency)
   * [JS API](#js-api)
+  * [From raw bytes (Cloudflare Workers)](#from-raw-bytes-cloudflare-workers)
   * [CLI](#cli)
 
 <!-- tocstop -->
@@ -130,7 +132,7 @@ const htmlString = render({
     alt: 'hello',
     width: 30,
     height: 30,
-    placeholder: 'UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV',
+    placeholder: 'UQGudvt700t3~XbIE1xt9Hazs:of.8s:V[Rj',
     src: 'abc.jpg'
 })
 ```
@@ -242,14 +244,49 @@ __CSS variables__
 Use Node to create the `placeholder` attribute, the string consumed
 by blur-hash.
 
+### Install the peer dependency
+
+The hash generator uses [`@cf-wasm/photon`][photon], a WASM build of the
+Photon image library, to decode and resize images. It is an *optional* peer
+dependency, so it is not installed automatically. Add it to your project to
+use the `./hash` or `./photon` entrypoints:
+
+```sh
+npm install @cf-wasm/photon
+```
+
+Browser-only consumers of the `<blur-hash>` component do not need it.
+
+[photon]: https://github.com/fineshopdesign/cf-wasm/tree/main/packages/photon
+
 ### JS API
 
-```js
-import { createString } from '@substrate-system/blur-hash/hash'
+Read an image file from disk (Node only) and get back the blurhash plus the
+original image's dimensions:
 
-const hash = await createString('../example/100.jpg')
-// => 'UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV'
+```js
+import { createBlurhash } from '@substrate-system/blur-hash/hash'
+
+const { hash, width, height } = await createBlurhash('./example/100.jpg')
+// hash   => 'UQGudvt700t3~XbIE1xt9Hazs:of.8s:V[Rj'
+// width  => 750
+// height => 600
 ```
+
+### From raw bytes (Cloudflare Workers)
+
+If you already have the image bytes in memory -- for example inside a
+Cloudflare Worker -- use the `./photon` entrypoint, which takes a `Uint8Array`
+and runs in `workerd`:
+
+```js
+import { encodeImage } from '@substrate-system/blur-hash/photon'
+
+const { hash, width, height } = await encodeImage(bytes)
+```
+
+Both entrypoints run under plain Node and Cloudflare Workers -- the correct
+`@cf-wasm/photon` build resolves automatically per runtime.
 
 ### CLI
 
