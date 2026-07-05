@@ -170,6 +170,14 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         if (!src) throw new Error('Not src')
         if (!alt) throw new Error('Not alt')
 
-        return BlurHash.html({ classes, srcset, width, height, src, alt, placeholder })
+        return BlurHash.html({
+            classes,
+            srcset,
+            width,
+            height,
+            src,
+            alt,
+            placeholder
+        })
     }
 }
