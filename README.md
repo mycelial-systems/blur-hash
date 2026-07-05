@@ -40,7 +40,7 @@ as a
   * [Import CSS](#import-css)
   * [variables](#variables)
 - [Create the blur-hash string](#create-the-blur-hash-string)
-  * [Install the peer dependency](#install-the-peer-dependency)
+  * [1. Install the peer dependency](#1-install-the-peer-dependency)
   * [JS API](#js-api)
   * [From raw bytes (Cloudflare Workers)](#from-raw-bytes-cloudflare-workers)
   * [CLI](#cli)
@@ -316,8 +316,4 @@ On mac os,
 
 ```sh
 npx blur ./my-file.jpg | pbcopy
-```
-
-```
-/ed3d-plan-and-execute:execute-implementation-plan /Users/nick/code/blur-hash/docs/implementation-plans/2026-07-04-photon-blurhash-generation/ /Users/nick/code/blur-hash/
 ```
