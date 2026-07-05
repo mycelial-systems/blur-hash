@@ -23,6 +23,7 @@
       "require": "./dist/render.cjs"
     },
     "./hash": "./dist/bin/index.js",
+    "./photon": "./dist/bin/photon.js",
     "./*": {
       "import": [
         "./dist/*.js",
