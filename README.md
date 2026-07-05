@@ -9,9 +9,12 @@
 [![license](https://img.shields.io/badge/license-Big_Time-blue?style=flat-square)](LICENSE)
 
 
-This is the ["blur-up" image loading technique](https://css-tricks.com/the-blur-up-technique-for-loading-background-images/),
-with the [blur-hash algorithm](https://blurha.sh/),
-as a [web component](https://developer.mozilla.org/en-US/docs/Web/API/Web_components).
+This is the
+["blur-up" image loading technique](https://css-tricks.com/the-blur-up-technique-for-loading-background-images/),
+with the
+[blur-hash algorithm](https://blurha.sh/),
+as a
+[web component](https://developer.mozilla.org/en-US/docs/Web/API/Web_components).
 
 [See a live demonstration](https://substrate-system.github.io/blur-hash/)
 
@@ -37,7 +40,9 @@ as a [web component](https://developer.mozilla.org/en-US/docs/Web/API/Web_compon
   * [Import CSS](#import-css)
   * [variables](#variables)
 - [Create the blur-hash string](#create-the-blur-hash-string)
+  * [Install the peer dependency](#install-the-peer-dependency)
   * [JS API](#js-api)
+  * [From raw bytes (Cloudflare Workers)](#from-raw-bytes-cloudflare-workers)
   * [CLI](#cli)
 
 <!-- tocstop -->
@@ -101,6 +106,7 @@ Use the tag in HTML.
 ```
 
 ## Use
+
 Call the static method `.define` in JS, then use the tag in HTML.
 
 ```js
@@ -120,8 +126,9 @@ BlurHash.define()
 ```
 
 ### Server-side rendering
-Following convention, this module exposes `render` function at `/html`. It
-returns a plain string of markup.
+
+This module exposes a `render` function at `/html`. It returns a plain string
+of HTML.
 
 ```js
 import { render } from '@substrate-system/blur-hash/html'
@@ -130,7 +137,7 @@ const htmlString = render({
     alt: 'hello',
     width: 30,
     height: 30,
-    placeholder: 'UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV',
+    placeholder: 'UQGudvt700t3~XbIE1xt9Hazs:of.8s:V[Rj',
     src: 'abc.jpg'
 })
 ```
@@ -162,18 +169,19 @@ type Attrs = {
 #### other attributes
 
 #### time
+
 The time for css transitions and animation. This is set as a CSS variable.
 
 #### width & height
+
 The dimensions for the image
 
 ----------------------------------------------
 
 ### `.reset`
 
-Change the image, and do the blur-up thing again.
-
-Takes a new `src` string, new placeholder string, and all other attributes.
+Change the image, and do the blur-up thing again. Takes a new `src` string,
+new placeholder string, and all other attributes.
 
 If `width` and `height` are not passed in, it will keep the existing width
 and height.
@@ -237,19 +245,59 @@ __CSS variables__
 * `--blur-hash-opactiy` -- the opacity to use for the placeholder image,
   default is `0.4`
 
+
+---
+
+
 ## Create the blur-hash string
 
 Use Node to create the `placeholder` attribute, the string consumed
 by blur-hash.
 
+### 1. Install the peer dependency
+
+The hash generator uses [`@cf-wasm/photon`][photon], a WASM build of the
+Photon image library, to decode and resize images. It is an *optional* peer
+dependency, so it is not installed automatically. Add it to your project to
+use the `./hash` or `./photon` entrypoints:
+
+```sh
+npm i @cf-wasm/photon
+```
+
+Browser-only consumers of the `<blur-hash>` component do not need it.
+
+[photon]: https://github.com/fineshopdesign/cf-wasm/tree/main/packages/photon
+
 ### JS API
 
-```js
-import { createString } from '@substrate-system/blur-hash/hash'
+Read an image file from disk (Node only) and get back the blurhash plus the
+original image's dimensions:
 
-const hash = await createString('../example/100.jpg')
-// => 'UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV'
+```js
+import { createBlurhash } from '@substrate-system/blur-hash/hash'
+
+const { hash, width, height } = await createBlurhash('./example/100.jpg')
+// hash   => 'UQGudvt700t3~XbIE1xt9Hazs:of.8s:V[Rj'
+// width  => 750
+// height => 600
 ```
+
+
+### From raw bytes (Cloudflare Workers)
+
+If you already have the image bytes in memory -- for example inside a
+Cloudflare Worker -- use the `./photon` entrypoint, which takes a `Uint8Array`
+and runs in `workerd`:
+
+```js
+import { encodeImage } from '@substrate-system/blur-hash/photon'
+
+const { hash, width, height } = await encodeImage(bytes)
+```
+
+Both entrypoints run under plain Node and Cloudflare Workers -- the correct
+`@cf-wasm/photon` build resolves automatically per runtime.
 
 ### CLI
 
@@ -268,4 +316,8 @@ On mac os,
 
 ```sh
 npx blur ./my-file.jpg | pbcopy
+```
+
+```
+/ed3d-plan-and-execute:execute-implementation-plan /Users/nick/code/blur-hash/docs/implementation-plans/2026-07-04-photon-blurhash-generation/ /Users/nick/code/blur-hash/
 ```

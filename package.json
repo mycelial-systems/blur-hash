@@ -23,6 +23,7 @@
       "require": "./dist/render.cjs"
     },
     "./hash": "./dist/bin/index.js",
+    "./photon": "./dist/bin/photon.js",
     "./*": {
       "import": [
         "./dist/*.js",
@@ -39,7 +40,7 @@
     "build-tests": "esbuild test/index.ts --target=es2020 --bundle --keep-names > test/test-bundle.js",
     "test": "npm run build && npm run build-tests && npm run test-gui && npm run test-bin && npm run test-api && npm run test-ssr",
     "test-bin": "npm run build-bin && esbuild ./test/bin.ts > ./test/bin.js && node ./test/bin.js | tap-spec",
-    "test-api": "esbuild ./test/api.ts --format=esm --platform=node > test/api.js && esbuild ./bin/index.ts --platform=node > bin/index.js && node ./test/api.js | tap-spec",
+    "test-api": "esbuild ./test/api.ts --format=esm --platform=node > test/api.js && esbuild bin/*.ts --platform=node --format=esm --keep-names --outdir=bin && node ./test/api.js | tap-spec",
     "test-ssr": "esbuild ./test/ssr.ts --bundle --platform=node | node --input-type=module | tap-spec",
     "test-gui": "esbuild ./test/index.ts --bundle | tapout | tap-spec",
     "build-css": "lightningcss --browserslist src/index.css -o dist/style.css",
@@ -50,7 +51,7 @@
     "build-example": "mkdir -p ./public && rm -rf ./public/* && vite --base=\"/blur-hash\" build",
     "build-docs": "typedoc --tsconfig tsconfig.build.json ./src/index.ts",
     "build": "mkdir -p ./dist && rm -rf ./dist/* && npm run build-cjs && npm run build-esm && npm run build-esm:min && npm run build-bin && npm run build-css && npm run build-css:min",
-    "build-bin": "mkdir -p dist/bin && esbuild --platform=node ./bin/index.ts > ./dist/bin/index.js",
+    "build-bin": "mkdir -p dist/bin && esbuild bin/*.ts --platform=node --format=esm --keep-names --outdir=dist/bin",
     "start": "vite",
     "toc": "markdown-toc --maxdepth 3 -i README.md",
     "preversion": "npm run lint",
@@ -59,18 +60,18 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@substrate-system/web-component": "^0.0.51",
+    "@substrate-system/web-component": "^0.0.56",
     "blurhash": "^2.0.5",
     "image-size": "^2.0.2",
     "inkjet": "^3.0.0",
-    "sharp": "^0.34.5",
     "yargs": "^18.0.0"
   },
   "devDependencies": {
+    "@cf-wasm/photon": "^0.3.5",
     "@substrate-system/dom": "^0.1.13",
     "@substrate-system/tapout": "^0.0.38",
     "@substrate-system/tapzero": "^0.10.16",
-    "@types/sharp": "^0.31.1",
+    "@types/node": "^25.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "auto-changelog": "^2.4.0",
@@ -78,6 +79,9 @@
     "esbuild": "^0.27.2",
     "eslint": "^8.57.0",
     "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-n": "^18.2.1",
+    "eslint-plugin-promise": "^7.3.0",
     "lightningcss": "^1.32.0",
     "lightningcss-cli": "^1.32.0",
     "markdown-toc": "^1.2.0",
@@ -86,6 +90,14 @@
     "typedoc": "^0.28.1",
     "typescript": "^6.0.2",
     "vite": "^8.0.5"
+  },
+  "peerDependencies": {
+    "@cf-wasm/photon": "^0.3.5"
+  },
+  "peerDependenciesMeta": {
+    "@cf-wasm/photon": {
+      "optional": true
+    }
   },
   "author": "nichoth <nichoth@nichoth.com> (https://nichoth.com)",
   "license": "SEE LICENSE IN LICENSE",

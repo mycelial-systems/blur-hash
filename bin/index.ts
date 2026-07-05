@@ -1,23 +1,26 @@
 #!/usr/bin/env node
+//
+// Documents this file's dependency on @types/node explicitly. Ambient
+// declarations from a referenced types package apply to the whole
+// compilation, not just this file -- this directive does not scope
+// Node globals to bin/ alone.
+//
+/// <reference types="node" />
 import yargs from 'yargs'
-import sharp from 'sharp'
 import { hideBin } from 'yargs/helpers'
-import { encode } from 'blurhash'
+import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { encodeImage, type BlurhashResult } from './photon.js'
 
 /**
- * Create a string for blur-hash.
+ * Create a blur-hash from a local image file.
  */
-export const createString = async (
-    filepath:string,
-):Promise<string> => {
-    const { data, info } = await sharp(filepath)
-        .raw()
-        .ensureAlpha()
-        .toBuffer({ resolveWithObject: true })
-
-    return encode(new Uint8ClampedArray(data.buffer), info.width, info.height, 4, 4)
+export async function createBlurhash (
+    filepath:string
+):Promise<BlurhashResult> {
+    const bytes = await readFile(filepath)
+    return encodeImage(new Uint8Array(bytes))
 }
 
 const pathToThisFile = resolve(fileURLToPath(import.meta.url))
@@ -33,7 +36,7 @@ if (isThisFileBeingRunViaCLI) {
         .usage('Usage: blur <filename>')
         .argv
 
-    const filename = args._[0]
-    const hash = await createString(filename)
-    process.stdout.write(hash + '\n')
+    const filename = String(args._[0])
+    const result = await createBlurhash(filename)
+    process.stdout.write(result.hash + '\n')
 }
