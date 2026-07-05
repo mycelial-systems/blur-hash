@@ -17,7 +17,13 @@ export const createString = async (
         .ensureAlpha()
         .toBuffer({ resolveWithObject: true })
 
-    return encode(new Uint8ClampedArray(data.buffer), info.width, info.height, 4, 4)
+    return encode(
+        new Uint8ClampedArray(data.buffer),
+        info.width,
+        info.height,
+        4,
+        4
+    )
 }
 
 const pathToThisFile = resolve(fileURLToPath(import.meta.url))
