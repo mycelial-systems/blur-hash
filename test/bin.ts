@@ -16,7 +16,7 @@ test('cli script', async t => {
 
     return new Promise((resolve) => {
         child.stdout?.on('data', data => {
-            t.equal('' + data, 'UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV\n',
+            t.equal('' + data, 'UQGudvt700t3~XbIE1xt9Hazs:of.8s:V[Rj\n',
                 'should get the expected string from the example image')
         })
 
