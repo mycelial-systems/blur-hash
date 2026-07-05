@@ -1,4 +1,10 @@
 #!/usr/bin/env node
+//
+// Documents this file's dependency on @types/node explicitly. Ambient
+// declarations from a referenced types package apply to the whole
+// compilation, not just this file -- this directive does not scope
+// Node globals to bin/ alone.
+//
 /// <reference types="node" />
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
