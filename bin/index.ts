@@ -11,14 +11,14 @@ import { hideBin } from 'yargs/helpers'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { encodeImage } from './photon.js'
+import { encodeImage, type BlurhashResult } from './photon.js'
 
 /**
  * Create a blur-hash from a local image file.
  */
 export async function createBlurhash (
     filepath:string
-):Promise<{ hash:string; width:number; height:number }> {
+):Promise<BlurhashResult> {
     const bytes = await readFile(filepath)
     return encodeImage(new Uint8Array(bytes))
 }
@@ -36,7 +36,7 @@ if (isThisFileBeingRunViaCLI) {
         .usage('Usage: blur <filename>')
         .argv
 
-    const filename = args._[0] as string
+    const filename = String(args._[0])
     const result = await createBlurhash(filename)
     process.stdout.write(result.hash + '\n')
 }

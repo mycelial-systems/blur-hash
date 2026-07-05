@@ -13,6 +13,16 @@ const BLURHASH_SIZE = 32
 const COMPONENTS = 4
 
 /**
+ * The result of blurhash encoding: the hash string and original image
+ * dimensions.
+ */
+export type BlurhashResult = {
+    hash:string;
+    width:number;
+    height:number;
+}
+
+/**
  * Decode raw image bytes and produce a blurhash string plus the original
  * image's dimensions. Runtime-agnostic: the plain `@cf-wasm/photon` specifier
  * resolves to the `node` build under Node and the `workerd` build under
@@ -22,7 +32,7 @@ const COMPONENTS = 4
  */
 export async function encodeImage (
     bytes:Uint8Array
-):Promise<{ hash:string; width:number; height:number }> {
+):Promise<BlurhashResult> {
     let original:PhotonImage|null = null
     let resized:PhotonImage|null = null
 
