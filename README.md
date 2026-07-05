@@ -9,9 +9,12 @@
 [![license](https://img.shields.io/badge/license-Big_Time-blue?style=flat-square)](LICENSE)
 
 
-This is the ["blur-up" image loading technique](https://css-tricks.com/the-blur-up-technique-for-loading-background-images/),
-with the [blur-hash algorithm](https://blurha.sh/),
-as a [web component](https://developer.mozilla.org/en-US/docs/Web/API/Web_components).
+This is the
+["blur-up" image loading technique](https://css-tricks.com/the-blur-up-technique-for-loading-background-images/),
+with the
+[blur-hash algorithm](https://blurha.sh/),
+as a
+[web component](https://developer.mozilla.org/en-US/docs/Web/API/Web_components).
 
 [See a live demonstration](https://substrate-system.github.io/blur-hash/)
 
@@ -103,6 +106,7 @@ Use the tag in HTML.
 ```
 
 ## Use
+
 Call the static method `.define` in JS, then use the tag in HTML.
 
 ```js
@@ -122,8 +126,9 @@ BlurHash.define()
 ```
 
 ### Server-side rendering
-Following convention, this module exposes `render` function at `/html`. It
-returns a plain string of markup.
+
+This module exposes a `render` function at `/html`. It returns a plain string
+of HTML.
 
 ```js
 import { render } from '@substrate-system/blur-hash/html'
@@ -164,18 +169,19 @@ type Attrs = {
 #### other attributes
 
 #### time
+
 The time for css transitions and animation. This is set as a CSS variable.
 
 #### width & height
+
 The dimensions for the image
 
 ----------------------------------------------
 
 ### `.reset`
 
-Change the image, and do the blur-up thing again.
-
-Takes a new `src` string, new placeholder string, and all other attributes.
+Change the image, and do the blur-up thing again. Takes a new `src` string,
+new placeholder string, and all other attributes.
 
 If `width` and `height` are not passed in, it will keep the existing width
 and height.
@@ -239,12 +245,16 @@ __CSS variables__
 * `--blur-hash-opactiy` -- the opacity to use for the placeholder image,
   default is `0.4`
 
+
+---
+
+
 ## Create the blur-hash string
 
 Use Node to create the `placeholder` attribute, the string consumed
 by blur-hash.
 
-### Install the peer dependency
+### 1. Install the peer dependency
 
 The hash generator uses [`@cf-wasm/photon`][photon], a WASM build of the
 Photon image library, to decode and resize images. It is an *optional* peer
@@ -252,7 +262,7 @@ dependency, so it is not installed automatically. Add it to your project to
 use the `./hash` or `./photon` entrypoints:
 
 ```sh
-npm install @cf-wasm/photon
+npm i @cf-wasm/photon
 ```
 
 Browser-only consumers of the `<blur-hash>` component do not need it.
@@ -272,6 +282,7 @@ const { hash, width, height } = await createBlurhash('./example/100.jpg')
 // width  => 750
 // height => 600
 ```
+
 
 ### From raw bytes (Cloudflare Workers)
 
