@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/// <reference types="node" />
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 import { readFile } from 'node:fs/promises'
