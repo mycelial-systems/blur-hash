@@ -68,5 +68,8 @@ the node build.
   compilation, not just `bin/`. It documents this file's dependency on
   `@types/node`; it does NOT scope Node globals to `bin/` alone. `src/`
   stays browser-facing by convention, not because of that directive.
-- `tsconfig.json` type-checks `bin/`, but `tsconfig.build.json` excludes
-  it -- `bin/` is built with esbuild, not tsc.
+- `tsconfig.json` includes `bin/` for type-checking, and
+  `tsconfig.build.json` (which extends it, excluding only `example` and
+  `test`) does NOT exclude `bin/` -- `tsc --emitDeclarationOnly` genuinely
+  type-checks `bin/*.ts` and emits `dist/bin/*.d.ts`. The runtime JS output
+  itself comes from esbuild (`build-bin`), not tsc.
