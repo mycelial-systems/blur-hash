@@ -71,7 +71,7 @@
     "@substrate-system/dom": "^0.1.13",
     "@substrate-system/tapout": "^0.0.38",
     "@substrate-system/tapzero": "^0.10.16",
-    "@types/node": "^25.0.0",
+    "@types/node": "^26.1.1",
     "auto-changelog": "^2.4.0",
     "browserslist": "^4.24.0",
     "esbuild": "^0.28.0",
