@@ -53,7 +53,7 @@
     "build": "mkdir -p ./dist && rm -rf ./dist/* && npm run build-cjs && npm run build-esm && npm run build-esm:min && npm run build-bin && npm run build-css && npm run build-css:min",
     "build-bin": "mkdir -p dist/bin && esbuild bin/*.ts --platform=node --format=esm --keep-names --outdir=dist/bin",
     "start": "vite",
-    "toc": "markdown-toc --maxdepth 3 -i README.md",
+    "toc": "markdown-toc --maxdepth 4 -i README.md",
     "preversion": "npm run lint",
     "version": "npm run toc && auto-changelog -p --template keepachangelog --breaking-pattern 'BREAKING CHANGE:' && git add CHANGELOG.md README.md",
     "postversion": "git push --follow-tags && npm publish",

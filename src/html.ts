@@ -30,7 +30,6 @@ export function render (attrs:SSRAttrs) {
         alt="${alt}"
         width=${decodeSize.width}
         height=${decodeSize.height}
-        class="blurry"
     ></canvas>
 
     <img class="blurry"
