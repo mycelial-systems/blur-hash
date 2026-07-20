@@ -68,7 +68,7 @@ document.body.innerHTML += `
     <hr />
 
     <div>
-        <p><code>delay="200"</code> &mdash; waits 200ms before blurring up</p>
+        <p><code>delay="500"</code> &mdash; waits 500ms before blurring up</p>
         <pre>${escapeHtml(explicitDelayTag)}</pre>
         <blur-hash
             width="400px"
@@ -76,7 +76,7 @@ document.body.innerHTML += `
             placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
             alt="cool cat"
             src=${imgUrl}
-            delay="200"
+            delay="500"
         ></blur-hash>
     </div>
 
