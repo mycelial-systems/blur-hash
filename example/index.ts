@@ -11,14 +11,70 @@ BlurHash.define()
 // the string from CLI for the 100 cat
 // UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV
 
+const noDelayTag = `<blur-hash
+    width="400px"
+    height="400px"
+    placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
+    alt="cool cat"
+    src="${imgUrl}"
+></blur-hash>`
+
+const defaultDelayTag = `<blur-hash
+    width="400px"
+    height="400px"
+    placeholder="UgI}q#%O%eNa?^I?awaf?aIVs*WBxZxaRjR*"
+    alt="some llamas"
+    src="${llamas}"
+    delay
+></blur-hash>`
+
+const explicitDelayTag = `<blur-hash
+    width="400px"
+    height="400px"
+    placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
+    alt="cool cat"
+    src="${imgUrl}"
+    delay="200"
+></blur-hash>`
+
 document.body.innerHTML += `
-    <blur-hash
-        width="400px"
-        height="400px"
-        placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
-        alt="cool cat"
-        src=${imgUrl}
-    ></blur-hash>
+    <div>
+        <p>no <code>delay</code> attribute -- always blurs up</p>
+        <pre>${escapeHtml(noDelayTag)}</pre>
+        <blur-hash
+            width="400px"
+            height="400px"
+            placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
+            alt="cool cat"
+            src=${imgUrl}
+        ></blur-hash>
+    </div>
+
+    <div>
+        <p><code>delay</code> attribute, no value -- defaults to 75ms</p>
+        <pre>${escapeHtml(defaultDelayTag)}</pre>
+        <blur-hash
+            width="400px"
+            height="400px"
+            placeholder="UgI}q#%O%eNa?^I?awaf?aIVs*WBxZxaRjR*"
+            alt="some llamas"
+            src=${llamas}
+            delay
+        ></blur-hash>
+    </div>
+
+    <div>
+        <p><code>delay="200"</code> -- waits 200ms before blurring up</p>
+        <pre>${escapeHtml(explicitDelayTag)}</pre>
+        <blur-hash
+            width="400px"
+            height="400px"
+            placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
+            alt="cool cat"
+            src=${imgUrl}
+            delay="200"
+        ></blur-hash>
+    </div>
 
     <hr />
 
@@ -35,3 +91,10 @@ qs('button')?.addEventListener('click', ev => {
         placeholder: 'UgI}q#%O%eNa?^I?awaf?aIVs*WBxZxaRjR*'
     })
 })
+
+function escapeHtml (str:string):string {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+}
