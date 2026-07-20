@@ -1,3 +1,7 @@
+hr {
+    margin: 2rem 0;
+}
+
 blur-hash {
     --blur-hash-opacity: 0.2;
     --blur-hash-time: 2s;

@@ -50,6 +50,8 @@ document.body.innerHTML += `
         ></blur-hash>
     </div>
 
+    <hr />
+
     <div>
         <p><code>delay</code> attribute, no value -- defaults to 75ms</p>
         <pre>${escapeHtml(defaultDelayTag)}</pre>
@@ -62,6 +64,8 @@ document.body.innerHTML += `
             delay
         ></blur-hash>
     </div>
+
+    <hr />
 
     <div>
         <p><code>delay="200"</code> -- waits 200ms before blurring up</p>

@@ -120,11 +120,12 @@ export class BlurHash extends WebComponent.create('blur-hash') {
 
     /**
      * If `delay` is not set, always run the blur-up effect (matches the
-     * previous, unconditional behavior). If `delay` is set, only blur-up
-     * when the image genuinely takes longer than `delay` to load: race a
-     * debounce timer against the image `load` event -- load wins -> reveal
-     * sharp, no blur, no animation; the timer wins (slow load) -> show the
-     * blurry placeholder and cross-fade to sharp on load.
+     * previous, unconditional behavior). If `delay` is set, the blurry
+     * placeholder is always shown first. Then it's a race between the
+     * image `load` event and a `delay` timer: load wins (fast load) ->
+     * snap straight to the sharp image, no animation; the timer wins
+     * (slow load) -> once the image does load, cross-fade from the
+     * placeholder to sharp.
      */
     blurUp (placeholder:string, width:number, height:number):void {
         const img = this.qs('img')!
@@ -149,28 +150,30 @@ export class BlurHash extends WebComponent.create('blur-hash') {
             return
         }
 
-        // Already decoded from cache -> reveal now, no blur, no animation.
-        if (img.complete && img.naturalWidth > 0) {
+        img.classList.add('blurry')
+        this.scheduleDecode(placeholder, width, height)
+
+        let delayElapsed = false
+
+        const toSharp = (animate:boolean) => {
+            this.clearBlurTimer()
             img.classList.remove('blurry')
+            img.classList.add(animate ? 'sharp' : 'instant')
+        }
+
+        if (img.complete && img.naturalWidth > 0) {
+            // Already decoded from cache -- show the placeholder for a
+            // frame, then snap to sharp with no animation. Defer behind a
+            // double rAF so the blurry frame actually paints first.
+            requestAnimationFrame(() => requestAnimationFrame(() => toSharp(false)))
             return
         }
 
-        let placeholderShown = false
-
-        const onLoad = () => {
-            this.clearBlurTimer()
-            img.classList.remove('blurry')
-            // Only animate if we actually showed the placeholder.
-            if (placeholderShown) img.classList.add('sharp')
-        }
-        img.addEventListener('load', onLoad, { once: true })
+        img.addEventListener('load', () => toSharp(delayElapsed), { once: true })
 
         this.blurTimer = setTimeout(() => {
             this.blurTimer = null
-            if (!this.isConnected) return
-            placeholderShown = true
-            img.classList.add('blurry')  // fade to placeholder
-            this.scheduleDecode(placeholder, width, height)  // paint canvas
+            delayElapsed = true
         }, this.delay)
     }
 

@@ -28,6 +28,11 @@ blur-hash {
             opacity: 1;
             animation: sharpen var(--blur-hash-time, 0.8s) both;
         }
+
+        &.instant {
+            opacity: 1;
+            transition: none;
+        }
     }
 }
 
