@@ -16,10 +16,18 @@ with the
 as a
 [web component](https://developer.mozilla.org/en-US/docs/Web/API/Web_components).
 
-[See a live demonstration](https://substrate-system.github.io/blur-hash/)
+[See a live demonstration](https://mycelial-systems.github.io/blur-hash/).
 
 > [!TIP]
 > Throttle the internet speed with the dev tools.
+
+By default, the blur-up animation always runs on mount (or [`.reset`](#reset)),
+regardless of whether the image is cached. Set the [`delay`](#delay)
+attribute to opt into a smarter behavior: a debounce timer races the image's
+`load` event -- if `load` wins (cached or fast network) within `delay`
+milliseconds, the image is shown sharp immediately, with no blurry
+placeholder and no animation. If the timer wins (a slow load), the blurry
+placeholder is shown and the image cross-fades to sharp once it loads.
 
 <details><summary><h2>Contents</h2></summary>
 
@@ -31,11 +39,18 @@ as a
   * [CJS](#cjs)
   * [Bundler](#bundler)
   * [pre-built JS](#pre-built-js)
+    + [copy](#copy)
+    + [HTML](#html)
 - [Use](#use)
   * [Server-side rendering](#server-side-rendering)
 - [API](#api)
   * [Attributes](#attributes)
+    + [other attributes](#other-attributes)
+    + [time](#time)
+    + [width & height](#width--height)
+    + [delay](#delay)
   * [`.reset`](#reset)
+    + [`.reset` example](#reset-example)
 - [CSS](#css)
   * [Import CSS](#import-css)
   * [variables](#variables)
@@ -44,6 +59,7 @@ as a
   * [JS API](#js-api)
   * [From raw bytes (Cloudflare Workers)](#from-raw-bytes-cloudflare-workers)
   * [CLI](#cli)
+    + [Print to system clipboard](#print-to-system-clipboard)
 
 <!-- tocstop -->
 
@@ -164,6 +180,9 @@ type Attrs = {
 }
 ```
 
+`delay` is a separate, plain HTML attribute (not part of the `Attrs` type
+above, and not passed to [`.reset`](#reset)) -- see below.
+
 --------------------------------------
 
 #### other attributes
@@ -175,6 +194,49 @@ The time for css transitions and animation. This is set as a CSS variable.
 #### width & height
 
 The dimensions for the image
+
+#### delay
+
+Milliseconds to wait before showing the blurry placeholder, instead of
+always blurring up.
+
+If `delay` is **not set**, the blur-up effect always runs on
+mount, regardless of whether the image is already cached.
+
+**It can be distracting** to have the images do the sharpen effect on every
+page load, which is why this attribute exists.
+
+```html
+<blur-hash
+  alt="cool cat"
+  placeholder="LEHV6nWB2yk8pyo0adR*.7kCMdnj"
+  width=100
+  height=100
+  src="/example/cat.png"
+  delay="500"
+></blur-hash>
+```
+
+If `delay` **is set**, the blurry placeholder is only shown if the image
+takes longer than `delay` to load. If the image loads before `delay`
+elapses, it is shown sharp immediately and the placeholder/animation are
+skipped entirely. If the timer fires first, the placeholder is shown and
+the image cross-fades to sharp on `load`.
+
+The attribute's value must be an integer number of milliseconds. Set the
+attribute with no value -- `<blur-hash delay>` -- to use the default of
+`75`ms.
+
+```html
+<blur-hash
+  alt="cool cat"
+  placeholder="LEHV6nWB2yk8pyo0adR*.7kCMdnj"
+  width=100
+  height=100
+  src="/example/cat.png"
+  delay
+></blur-hash>
+```
 
 ----------------------------------------------
 

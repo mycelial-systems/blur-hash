@@ -186,7 +186,8 @@ test('blur-hash removed before its frame fires does not throw', async t => {
     t.equal(alpha, 0, 'detached element was not painted (callback bailed)')
 })
 
-test('a complete image defers the sharpen swap (cross-fade)', async t => {
+test('a complete (cached) image is revealed immediately when `delay` is set, ' +
+'no blur flash', async t => {
     // A 1x1 transparent GIF decodes from the data URI itself, so it becomes
     // `complete` without the (image-less) tapout server, unlike a network
     // src which 404s here.
@@ -199,6 +200,7 @@ test('a complete image defers the sharpen swap (cross-fade)', async t => {
             alt="cached image"
             width=30
             height=30
+            delay="100"
             src="${dataUri}"
             placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
         ></blur-hash>
@@ -207,32 +209,108 @@ test('a complete image defers the sharpen swap (cross-fade)', async t => {
     const el = (await waitFor('#cached')) as BlurHash
     const img = (await waitFor('#cached img')) as HTMLImageElement
 
-    // Drive the image to a known, fully-decoded state, then reset the reveal
-    // classes so sharpen() starts from a clean blurry frame.
+    // Drive the image to a known, fully-decoded state.
     await img.decode()
-    img.classList.add('blurry')
+
+    el.blurUp('UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV', 30, 30)
+
+    t.ok(!img.classList.contains('blurry'),
+        'cached image is not given the blurry class')
+    t.ok(!img.classList.contains('sharp'),
+        'cached image is not animated with the sharp class')
+})
+
+test('a slow-loading image shows the placeholder after `delay`, ' +
+'then sharpens on load', async t => {
+    document.body.innerHTML += `
+        <blur-hash
+            id="slow"
+            alt="slow image"
+            width=30
+            height=30
+            delay="10"
+            src="/100.jpg"
+            placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
+        ></blur-hash>
+    `
+
+    const img = (await waitFor('#slow img')) as HTMLImageElement
+    const canvas = (await waitFor('#slow canvas')) as HTMLCanvasElement
+
+    // The image src 404s in this test harness, so it never loads and the
+    // debounce timer always wins the race.
+    await waitFor(null, null, () => (img.classList.contains('blurry') ?
+        img :
+        null))
+    t.ok(img.classList.contains('blurry'),
+        'placeholder is shown once the `delay` timer fires')
+
+    await waitForPaint(canvas)
+    t.ok(true, 'canvas is painted once the timer fires')
+
+    img.dispatchEvent(new Event('load'))
+    t.ok(img.classList.contains('sharp'),
+        'image is sharpened on load after showing the placeholder')
+    t.ok(!img.classList.contains('blurry'),
+        'blurry class is removed once sharpened')
+})
+
+test('a valueless `delay` attribute defaults to 75ms', async t => {
+    document.body.innerHTML += `
+        <blur-hash
+            id="valueless"
+            alt="valueless delay"
+            width=30
+            height=30
+            delay
+            src="/100.jpg"
+            placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
+        ></blur-hash>
+    `
+
+    const el = (await waitFor('#valueless')) as BlurHash
+
+    t.equal(el.delay, 75, 'delay defaults to 75 when the attribute has no value')
+})
+
+test('without a `delay` attribute, the blur effect always runs, ' +
+'even for a cached image', async t => {
+    const dataUri = 'data:image/gif;base64,' +
+        'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
+    document.body.innerHTML += `
+        <blur-hash
+            id="alwaysblur"
+            alt="cached image, no delay"
+            width=30
+            height=30
+            src="${dataUri}"
+            placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
+        ></blur-hash>
+    `
+
+    const el = (await waitFor('#alwaysblur')) as BlurHash
+    const img = (await waitFor('#alwaysblur img')) as HTMLImageElement
+
+    t.equal(el.delay, null, 'delay defaults to null when the attribute is absent')
+
+    await img.decode()
+    img.classList.remove('blurry')
     img.classList.remove('sharp')
 
-    el.sharpen()
+    el.blurUp('UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV', 30, 30)
 
-    // The fix defers the class swap behind a double rAF so the browser paints
-    // the opacity:0 (blurry) frame before opacity:1 (sharp) is applied --
-    // otherwise the opacity transition never runs. The buggy version swapped
-    // synchronously right here.
     t.ok(img.classList.contains('blurry'),
-        'complete image is still blurry right after sharpen (deferred)')
+        'blurry class is added immediately, even though the image is cached')
     t.ok(!img.classList.contains('sharp'),
-        'complete image is not sharpened synchronously')
+        'not sharpened synchronously')
 
-    // Let the two scheduled frames (plus a margin) elapse.
     await new Promise(resolve => {
-        requestAnimationFrame(() =>
-            requestAnimationFrame(() =>
-                requestAnimationFrame(() => resolve(null))))
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))
     })
 
     t.ok(img.classList.contains('sharp'),
-        'image becomes sharp after the blurry frame has painted')
+        'becomes sharp once the blurry frame has painted')
     t.ok(!img.classList.contains('blurry'),
         'blurry class is removed once sharpened')
 })
