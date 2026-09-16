@@ -21,8 +21,7 @@ test('server-side render', t => {
 
     t.ok(htmlString.includes('<blur-hash'), 'should include the custom element')
     t.ok(htmlString.includes('<canvas'), 'should include a canvas element')
-    t.ok(htmlString.includes('blurry'),
-        'no-JS/SSR path should render the image with the blurry class, ' +
-        'since no `delay` attribute is set to opt into the debounced reveal')
+    t.ok(!htmlString.includes('blurry'),
+        'initial HTML should not include the blurry class')
     t.ok(htmlString)
 })

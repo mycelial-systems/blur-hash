@@ -3,7 +3,6 @@ import { decode } from 'blurhash'
 import { render } from './html.js'
 import { decodeDimensions } from './decode-dimensions.js'
 
-// for docuement.querySelector
 declare global {
     interface HTMLElementTagNameMap {
         'blur-hash':BlurHash
@@ -27,7 +26,7 @@ export type ImgAttrs = {
 export class BlurHash extends WebComponent.create('blur-hash') {
     time:number
     rafId:number|null = null
-    delay:number|null = null
+    delay:number = 100
     blurTimer:ReturnType<typeof setTimeout>|null = null
 
     constructor () {
@@ -118,62 +117,29 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         this.clearBlurTimer()
     }
 
-    /**
-     * If `delay` is not set, always run the blur-up effect (matches the
-     * previous, unconditional behavior). If `delay` is set, the blurry
-     * placeholder is always shown first. Then it's a race between the
-     * image `load` event and a `delay` timer: load wins (fast load) ->
-     * snap straight to the sharp image, no animation; the timer wins
-     * (slow load) -> once the image does load, cross-fade from the
-     * placeholder to sharp.
-     */
     blurUp (placeholder:string, width:number, height:number):void {
         const img = this.qs('img')!
 
-        if (this.delay === null) {
-            img.classList.add('blurry')
-            this.scheduleDecode(placeholder, width, height)
-
-            const toSharp = () => {
-                img.classList.remove('blurry')
-                img.classList.add('sharp')
-            }
-
-            if (img.complete && img.naturalWidth > 0) {
-                // Defer behind a double rAF so the browser paints the
-                // opacity:0 (blurry) frame before opacity:1 (sharp) is
-                // applied -- otherwise the opacity transition never runs.
-                requestAnimationFrame(() => requestAnimationFrame(toSharp))
-            } else {
-                img.addEventListener('load', toSharp, { once: true })
-            }
+        if (img.complete && img.naturalWidth > 0) {
+            img.classList.remove('blurry')
             return
         }
 
-        img.classList.add('blurry')
-        this.scheduleDecode(placeholder, width, height)
+        let placeholderShown = false
 
-        let delayElapsed = false
-
-        const toSharp = (animate:boolean) => {
+        const onLoad = () => {
             this.clearBlurTimer()
             img.classList.remove('blurry')
-            img.classList.add(animate ? 'sharp' : 'instant')
+            if (placeholderShown) img.classList.add('sharp')
         }
-
-        if (img.complete && img.naturalWidth > 0) {
-            // Already decoded from cache -- show the placeholder for a
-            // frame, then snap to sharp with no animation. Defer behind a
-            // double rAF so the blurry frame actually paints first.
-            requestAnimationFrame(() => requestAnimationFrame(() => toSharp(false)))
-            return
-        }
-
-        img.addEventListener('load', () => toSharp(delayElapsed), { once: true })
+        img.addEventListener('load', onLoad, { once: true })
 
         this.blurTimer = setTimeout(() => {
             this.blurTimer = null
-            delayElapsed = true
+            if (!this.isConnected) return
+            placeholderShown = true
+            img.classList.add('blurry')
+            this.scheduleDecode(placeholder, width, height)
         }, this.delay)
     }
 
@@ -186,7 +152,7 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         if (!height) throw new Error('Missing height')
 
         const d = this.getAttribute('delay')
-        this.delay = (d === null ? null : (d === '' ? 75 : parseInt(d, 10)))
+        this.delay = d ? parseInt(d, 10) : 100
 
         // don't render again if we dont have to
         if (!this.innerHTML) {

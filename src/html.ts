@@ -32,7 +32,7 @@ export function render (attrs:SSRAttrs) {
         height=${decodeSize.height}
     ></canvas>
 
-    <img class="blurry"
+    <img
         alt="${alt}"
         content-visibility="${contentVisibility || 'auto'}"
         decoding="${decoding || 'async'}"

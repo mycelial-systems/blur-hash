@@ -186,11 +186,8 @@ test('blur-hash removed before its frame fires does not throw', async t => {
     t.equal(alpha, 0, 'detached element was not painted (callback bailed)')
 })
 
-test('a complete (cached) image is revealed immediately when `delay` is set, ' +
+test('a complete (cached) image is revealed immediately, ' +
 'no blur flash', async t => {
-    // A 1x1 transparent GIF decodes from the data URI itself, so it becomes
-    // `complete` without the (image-less) tapout server, unlike a network
-    // src which 404s here.
     const dataUri = 'data:image/gif;base64,' +
         'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
@@ -200,7 +197,6 @@ test('a complete (cached) image is revealed immediately when `delay` is set, ' +
             alt="cached image"
             width=30
             height=30
-            delay="100"
             src="${dataUri}"
             placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
         ></blur-hash>
@@ -209,7 +205,6 @@ test('a complete (cached) image is revealed immediately when `delay` is set, ' +
     const el = (await waitFor('#cached')) as BlurHash
     const img = (await waitFor('#cached img')) as HTMLImageElement
 
-    // Drive the image to a known, fully-decoded state.
     await img.decode()
 
     el.blurUp('UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV', 30, 30)
@@ -255,33 +250,33 @@ test('a slow-loading image shows the placeholder after `delay`, ' +
         'blurry class is removed once sharpened')
 })
 
-test('a valueless `delay` attribute defaults to 75ms', async t => {
+test('delay defaults to 100ms', async t => {
     document.body.innerHTML += `
         <blur-hash
-            id="valueless"
-            alt="valueless delay"
+            id="defaultdelay"
+            alt="default delay"
             width=30
             height=30
-            delay
             src="/100.jpg"
             placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
         ></blur-hash>
     `
 
-    const el = (await waitFor('#valueless')) as BlurHash
+    const el = (await waitFor('#defaultdelay')) as BlurHash
 
-    t.equal(el.delay, 75, 'delay defaults to 75 when the attribute has no value')
+    t.equal(el.delay, 100,
+        'delay defaults to 100 when no attribute is set')
 })
 
-test('without a `delay` attribute, the blur effect always runs, ' +
-'even for a cached image', async t => {
+test('without a `delay` attribute, cached images skip blur ' +
+'(default 100ms debounce)', async t => {
     const dataUri = 'data:image/gif;base64,' +
         'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
     document.body.innerHTML += `
         <blur-hash
-            id="alwaysblur"
-            alt="cached image, no delay"
+            id="defaultcached"
+            alt="cached image, default delay"
             width=30
             height=30
             src="${dataUri}"
@@ -289,10 +284,11 @@ test('without a `delay` attribute, the blur effect always runs, ' +
         ></blur-hash>
     `
 
-    const el = (await waitFor('#alwaysblur')) as BlurHash
-    const img = (await waitFor('#alwaysblur img')) as HTMLImageElement
+    const el = (await waitFor('#defaultcached')) as BlurHash
+    const img = (await waitFor('#defaultcached img')) as HTMLImageElement
 
-    t.equal(el.delay, null, 'delay defaults to null when the attribute is absent')
+    t.equal(el.delay, 100,
+        'delay defaults to 100 when the attribute is absent')
 
     await img.decode()
     img.classList.remove('blurry')
@@ -300,19 +296,10 @@ test('without a `delay` attribute, the blur effect always runs, ' +
 
     el.blurUp('UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV', 30, 30)
 
-    t.ok(img.classList.contains('blurry'),
-        'blurry class is added immediately, even though the image is cached')
-    t.ok(!img.classList.contains('sharp'),
-        'not sharpened synchronously')
-
-    await new Promise(resolve => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))
-    })
-
-    t.ok(img.classList.contains('sharp'),
-        'becomes sharp once the blurry frame has painted')
     t.ok(!img.classList.contains('blurry'),
-        'blurry class is removed once sharpened')
+        'cached image does not get the blurry class')
+    t.ok(!img.classList.contains('sharp'),
+        'cached image does not get the sharp class')
 })
 
 test('all done', () => {

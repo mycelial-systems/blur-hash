@@ -8,3 +8,5 @@ dist
 public
 docs
 .claude
+bin/CLAUDE.md
+.agents
