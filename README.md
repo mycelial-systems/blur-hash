@@ -190,6 +190,7 @@ above, and not passed to [`.reset`](#reset)) -- see below.
 #### time
 
 The time for css transitions and animation. This is set as a CSS variable.
+Default is `0.8s`.
 
 #### width & height
 
