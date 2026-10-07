@@ -34,12 +34,12 @@ const explicitDelayTag = `<blur-hash
     placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
     alt="cool cat"
     src="${imgUrl}"
-    delay="200"
+    delay="500"
 ></blur-hash>`
 
 document.body.innerHTML += `
     <div>
-        <p>no <code>delay</code> attribute &mdash; always blurs up</p>
+        <p>no <code>delay</code> attribute &mdash; defaults to 100ms</p>
         <pre>${escapeHtml(noDelayTag)}</pre>
         <blur-hash
             width="400px"
@@ -53,7 +53,7 @@ document.body.innerHTML += `
     <hr />
 
     <div>
-        <p><code>delay</code> attribute, no value &mdash; defaults to 75ms</p>
+        <p><code>delay</code> attribute, no value &mdash; defaults to 100ms</p>
         <pre>${escapeHtml(defaultDelayTag)}</pre>
         <blur-hash
             width="400px"

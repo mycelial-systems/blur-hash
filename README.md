@@ -21,13 +21,12 @@ as a
 > [!TIP]
 > Throttle the internet speed with the dev tools.
 
-By default, the blur-up animation always runs on mount (or [`.reset`](#reset)),
-regardless of whether the image is cached. Set the [`delay`](#delay)
-attribute to opt into a smarter behavior: a debounce timer races the image's
-`load` event -- if `load` wins (cached or fast network) within `delay`
-milliseconds, the image is shown sharp immediately, with no blurry
-placeholder and no animation. If the timer wins (a slow load), the blurry
-placeholder is shown and the image cross-fades to sharp once it loads.
+The blur-up only runs when the image is slow to load. On mount (or
+[`.reset`](#reset)), a debounce timer races the image's `load` event. If the
+image is already cached, or loads within [`delay`](#delay) milliseconds
+(default `100`), it is shown sharp immediately, with no blurry placeholder
+and no animation. If the timer wins (a slow load), the blurry placeholder is
+shown and the image cross-fades to sharp once it loads.
 
 <details><summary><h2>Contents</h2></summary>
 
@@ -198,14 +197,11 @@ The dimensions for the image
 
 #### delay
 
-Milliseconds to wait before showing the blurry placeholder, instead of
-always blurring up.
-
-If `delay` is **not set**, the blur-up effect always runs on
-mount, regardless of whether the image is already cached.
+Milliseconds to wait for the image to load before showing the blurry
+placeholder. Default is `100`.
 
 **It can be distracting** to have the images do the sharpen effect on every
-page load, which is why this attribute exists.
+page load, which is why the blur-up is debounced.
 
 ```html
 <blur-hash
@@ -218,15 +214,15 @@ page load, which is why this attribute exists.
 ></blur-hash>
 ```
 
-If `delay` **is set**, the blurry placeholder is only shown if the image
-takes longer than `delay` to load. If the image loads before `delay`
-elapses, it is shown sharp immediately and the placeholder/animation are
-skipped entirely. If the timer fires first, the placeholder is shown and
-the image cross-fades to sharp on `load`.
+The blurry placeholder is only shown if the image takes longer than `delay`
+to load. If the image is already cached, or loads before `delay` elapses, it
+is shown sharp immediately and the placeholder/animation are skipped
+entirely. If the timer fires first, the placeholder is shown and the image
+cross-fades to sharp on `load`.
 
-The attribute's value must be an integer number of milliseconds. Set the
-attribute with no value -- `<blur-hash delay>` -- to use the default of
-`75`ms.
+The attribute's value must be an integer number of milliseconds. Omitting
+the attribute, or setting it with no value -- `<blur-hash delay>` -- uses
+the default of `100`ms.
 
 ```html
 <blur-hash
