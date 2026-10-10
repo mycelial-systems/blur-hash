@@ -401,7 +401,7 @@ import '@substrate-system/blur-hash/css'
 
 Or minified:
 ```js
-import '@substrate-system/blur-hash/css/min'
+import '@substrate-system/blur-hash/min/css'
 ```
 
 ### variables
