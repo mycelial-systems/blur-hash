@@ -1,3 +1,7 @@
+:root {
+    --example-fill: #d9d4c7;
+}
+
 hr {
     margin: 2rem 0;
 }

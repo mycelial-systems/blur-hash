@@ -145,7 +145,11 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         this.setReveal('pending')
         let waited = false
 
+        // A replaced img can still fire these after a newer generation
+        // started. Check the generation first, so a stale event never
+        // cancels the newer generation's delay timer.
         img.addEventListener('load', () => {
+            if (generation !== this.generation) return
             this.clearBlurTimer()
             const show = () => {
                 if (generation !== this.generation) return
@@ -159,8 +163,8 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         // Not stopped or re-dispatched: ancestors can listen with
         // a capturing listener.
         img.addEventListener('error', () => {
-            this.clearBlurTimer()
             if (generation !== this.generation) return
+            this.clearBlurTimer()
             this.setReveal('error')
         }, { once: true })
 
@@ -177,7 +181,11 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         const placeholder = this.getAttribute('placeholder')
         const time = this.getAttribute('time')
         this.time = time ? parseInt(time, 10) : 800
-        this.style.setProperty('--blur-hash-time', `${this.time / 1000}s`)
+        // Only an explicit attribute sets the inline value. An inline
+        // property would override a `--blur-hash-time` from the stylesheet.
+        if (time) {
+            this.style.setProperty('--blur-hash-time', `${this.time / 1000}s`)
+        }
 
         const delay = this.getAttribute('delay')
         this.delay = delay ? parseInt(delay, 10) : 100

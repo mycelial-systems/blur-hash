@@ -414,22 +414,23 @@ test('AC2.2: a preloaded src is revealed instantly with no transition',
 
 test('AC2.3: fill mode with no width or height renders without a canvas',
     t => {
-        let wrap:HTMLElement|null = null
-        try {
-            wrap = mount(`
-                <blur-hash id="fill" alt="" src="${PNG_1X1}"></blur-hash>
-            `)
-        } catch (_err) {
-            wrap = null
-        }
-        t.ok(wrap, 'appending a fill-mode host does not throw')
-        const el = hostOf(wrap!)
+        // A throw in connectedCallback is reported as a window error event
+        const errors:Event[] = []
+        const onError = (ev:Event) => { errors.push(ev) }
+        window.addEventListener('error', onError)
+        const wrap = mount(`
+            <blur-hash id="fill" alt="" src="${PNG_1X1}"></blur-hash>
+        `)
+        window.removeEventListener('error', onError)
+
+        t.equal(errors.length, 0, 'appending a fill-mode host does not throw')
+        const el = hostOf(wrap)
         t.ok(el.getAttribute('data-reveal'),
             'connectedCallback ran and set a reveal state')
         t.ok(el.querySelector('img'), 'the img is rendered')
         t.equal(el.querySelector('canvas'), null,
             'no canvas is rendered in fill mode')
-        wrap!.remove()
+        wrap.remove()
     })
 
 test('AC2.4: a rejected decode still reveals', async t => {
@@ -501,19 +502,24 @@ test('reset: a cached src is instant, and a stale load cannot flip it',
             </blur-hash>
         `)
         const el = hostOf(wrap)
+        const oldImg = wrap.querySelector('img')!
         // In flight: the old load is still pending when reset runs.
-        wrap.querySelector('img')!.src = PNG_1X1
+        oldImg.src = PNG_1X1
         el.reset({ src: PNG_2X1, alt: '' })
         t.equal(el.getAttribute('data-reveal'), 'instant',
             'reset to a cached src is instant')
 
-        await new Promise(resolve => setTimeout(resolve, 50))
+        // Wait for the stale load, and for its decode callback to run
+        await new Promise(resolve => {
+            oldImg.addEventListener('load', resolve, { once: true })
+        })
+        await oldImg.decode().catch(() => {})
         t.equal(el.getAttribute('data-reveal'), 'instant',
             'the stale load did not flip the state')
         wrap.remove()
     })
 
-test('reset: an uncached src returns a revealed host to pending',
+test('reset: an uncached src returns a settled host to pending',
     async t => {
         const wrap = mount(`
             <blur-hash id="repending" alt="" src="${PNG_1X1}"></blur-hash>
@@ -535,6 +541,87 @@ test('reset: an uncached src returns a revealed host to pending',
         t.equal(el.getAttribute('data-reveal'), 'pending',
             'reset returns the state to pending synchronously')
         wrap.remove()
+    })
+
+// Mount a host with an img, then replace that img with one that has no
+// src. A src-less img never fires load or error, so the new generation's
+// delay is the only thing that can settle the host. The old img is stale.
+function mountStaleImg ():{
+    wrap:HTMLElement;
+    el:BlurHash;
+    oldImg:HTMLImageElement;
+} {
+    const wrap = mount(`
+        <blur-hash id="stale" alt="" delay="300"
+            src="/stale-old.png"></blur-hash>
+    `)
+    const el = hostOf(wrap)
+    const oldImg = el.querySelector('img')!
+    el.innerHTML = '<img alt="">'
+    el.blurUp(null, 0, 0)
+    return { wrap, el, oldImg }
+}
+
+test('stale load: a late load of a replaced img keeps the new delay',
+    async t => {
+        const { wrap, el, oldImg } = mountStaleImg()
+        // The replaced img fires its load listener after reset
+        oldImg.dispatchEvent(new Event('load'))
+        t.equal(el.getAttribute('data-reveal'), 'pending',
+            'the stale load did not change the state')
+        const waiting = await waitFor('#stale[data-reveal="waiting"]', {
+            visible: false
+        }).catch(() => null)
+        t.ok(waiting, 'the new delay still moves the host to waiting')
+        wrap.remove()
+    })
+
+test('stale error: a late error on a replaced img keeps the new delay',
+    async t => {
+        const { wrap, el, oldImg } = mountStaleImg()
+        // The replaced img fires its error listener after reset
+        oldImg.dispatchEvent(new Event('error'))
+        t.equal(el.getAttribute('data-reveal'), 'pending',
+            'the stale error did not change the state')
+        const waiting = await waitFor('#stale[data-reveal="waiting"]', {
+            visible: false
+        }).catch(() => null)
+        t.ok(waiting, 'the new delay still moves the host to waiting')
+        wrap.remove()
+    })
+
+test('time: a CSS --blur-hash-time applies when no time attribute is set',
+    t => {
+        const style = document.createElement('style')
+        style.textContent = '#css-time { --blur-hash-time: 2s }'
+        document.head.appendChild(style)
+        const wrap = mount(`
+            <blur-hash id="css-time" alt="" width="100px" height="100px"
+                placeholder="${PLACEHOLDER}" src="/held-time.png"
+                loading="lazy"></blur-hash>
+        `)
+        const canvas = hostOf(wrap).querySelector('canvas')!
+        t.equal(getComputedStyle(canvas).transitionDuration, '2s',
+            'the canvas uses the duration from the stylesheet')
+        wrap.remove()
+        style.remove()
+    })
+
+test('time: the time attribute overrides a CSS --blur-hash-time',
+    t => {
+        const style = document.createElement('style')
+        style.textContent = '#attr-time { --blur-hash-time: 2s }'
+        document.head.appendChild(style)
+        const wrap = mount(`
+            <blur-hash id="attr-time" alt="" width="100px" height="100px"
+                time="300" placeholder="${PLACEHOLDER}"
+                src="/held-time.png" loading="lazy"></blur-hash>
+        `)
+        const canvas = hostOf(wrap).querySelector('canvas')!
+        t.equal(getComputedStyle(canvas).transitionDuration, '0.3s',
+            'the time attribute wins over the stylesheet')
+        wrap.remove()
+        style.remove()
     })
 
 test('all done', () => {
