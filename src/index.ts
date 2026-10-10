@@ -43,10 +43,6 @@ export class BlurHash extends WebComponent.create('blur-hash') {
     // Bumped on every blurUp, so a stale reveal cannot flip the state
     generation:number = 0
 
-    constructor () {
-        super()
-    }
-
     setReveal (state:RevealState):void {
         this.setAttribute('data-reveal', state)
     }
@@ -63,10 +59,14 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         if (attrs.height) this.style.height = '' + attrs.height
 
         const width = (attrs.width ?
-            (typeof attrs.width === 'string' ? parseInt(attrs.width, 10) : attrs.width) :
+            (typeof attrs.width === 'string' ?
+                parseInt(attrs.width, 10) :
+                attrs.width) :
             parseInt(this.style.width, 10))
         const height = (attrs.height ?
-            (typeof attrs.height === 'string' ? parseInt(attrs.height, 10) : attrs.height) :
+            (typeof attrs.height === 'string' ?
+                parseInt(attrs.height, 10) :
+                attrs.height) :
             parseInt(this.style.height, 10))
 
         this.clearBlurTimer()

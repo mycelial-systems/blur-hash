@@ -1,9 +1,61 @@
 import { test } from '@substrate-system/tapzero'
 import { waitFor } from '@substrate-system/dom'
+import css from '../src/index.css'
+import { outerHTML } from '../src/html.js'
 import { BlurHash } from '../src/index.js'
 import { decodeDimensions } from '../src/decode-dimensions.js'
 
-BlurHash.define()
+// Inject the stylesheet before any element is defined, so the
+// `blur-hash:defined` rules apply once the tests define the element.
+const styles = document.createElement('style')
+styles.textContent = css
+document.head.appendChild(styles)
+
+const PLACEHOLDER = 'UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV'
+
+// 1x1 PNG, used by the reveal tests
+const PNG_1X1 = 'data:image/png;base64,' +
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk' +
+    'YAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+
+// A distinct 2x1 PNG
+const PNG_2X1 = 'data:image/png;base64,' +
+    'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8AA' +
+    'Qv8BD/kD/YURmXYAAAAASUVORK5CYII='
+
+const GIF = 'data:image/gif;base64,' +
+    'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
+function mount (html:string):HTMLElement {
+    const wrap = document.createElement('div')
+    wrap.innerHTML = html
+    document.body.appendChild(wrap)
+    return wrap
+}
+
+function hostOf (wrap:HTMLElement):BlurHash {
+    return wrap.querySelector('blur-hash') as BlurHash
+}
+
+function opacityOf (el:Element):string {
+    return getComputedStyle(el).opacity
+}
+
+// Decode an image so it is in the document's list of available images,
+// which makes a later <img> with the same src complete synchronously.
+async function preload (src:string):Promise<void> {
+    const img = new Image()
+    img.src = src
+    await img.decode()
+}
+
+test('before define, the stylesheet leaves the SSR img visible', t => {
+    const wrap = mount(outerHTML({ src: PNG_2X1, alt: '' }))
+    const img = wrap.querySelector('img')!
+    t.equal(opacityOf(img), '1', 'img is not hidden before define')
+    wrap.remove()
+    BlurHash.define()
+})
 
 // Resolve once the canvas bottom-right pixel is painted. If the canvas
 // buffer size did not match the ImageData size, putImageData would fill
@@ -87,19 +139,25 @@ test('blur-hash decodes large dimensions at a capped canvas size', async t => {
 })
 
 test('blur-hash paints the whole capped canvas buffer', async t => {
-    document.body.innerHTML += `
+    // A source-less img never loads, so the placeholder timer is not
+    // cancelled and the canvas gets painted.
+    const wrap = mount(`
         <blur-hash
             id="painted"
             alt="painted"
             width=1200
             height=630
-            src="/100.jpg"
+            delay="10"
             placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
-        ></blur-hash>
-    `
-    const canvas = (await waitFor('#painted canvas')) as HTMLCanvasElement
+        >
+            <canvas width="32" height="17"></canvas>
+            <img alt="">
+        </blur-hash>
+    `)
+    const canvas = hostOf(wrap).querySelector('canvas')!
     await waitForPaint(canvas)
     t.ok(true, 'bottom-right pixel painted: buffer size == ImageData size')
+    wrap.remove()
 })
 
 test('blur-hash leaves small dimensions unchanged', async t => {
@@ -150,9 +208,10 @@ test('reset twice in a tick: no throw, still paints', async t => {
     }
 
     t.ok(!threw, 'two resets in the same tick do not throw')
-    const canvas = (await waitFor('#resettwice canvas')) as HTMLCanvasElement
-    await waitForPaint(canvas)
-    t.ok(true, 'canvas is painted after a rapid double reset')
+    t.ok(el.querySelector('canvas'), 'canvas is rendered after the resets')
+    // /100.jpg 404s: the error state is reached and not overwritten
+    const errored = await waitFor('#resettwice[data-reveal="error"]')
+    t.ok(errored, 'the last reset settles on error, not a stale state')
 })
 
 test('blur-hash removed before its frame fires does not throw', async t => {
@@ -188,66 +247,57 @@ test('blur-hash removed before its frame fires does not throw', async t => {
 
 test('a complete (cached) image is revealed immediately, ' +
 'no blur flash', async t => {
-    const dataUri = 'data:image/gif;base64,' +
-        'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+    await preload(GIF)
 
-    document.body.innerHTML += `
+    const wrap = mount(`
         <blur-hash
             id="cached"
             alt="cached image"
             width=30
             height=30
-            src="${dataUri}"
-            placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
+            src="${GIF}"
+            placeholder="${PLACEHOLDER}"
         ></blur-hash>
-    `
+    `)
 
-    const el = (await waitFor('#cached')) as BlurHash
-    const img = (await waitFor('#cached img')) as HTMLImageElement
-
-    await img.decode()
-
-    el.blurUp('UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV', 30, 30)
-
-    t.ok(!img.classList.contains('blurry'),
-        'cached image is not given the blurry class')
-    t.ok(!img.classList.contains('sharp'),
-        'cached image is not animated with the sharp class')
+    const el = hostOf(wrap)
+    const img = el.querySelector('img')!
+    t.equal(el.getAttribute('data-reveal'), 'instant',
+        'cached image is in the instant state')
+    t.equal(opacityOf(img), '1', 'cached image is visible with no blur')
+    t.equal(el.hasAttribute('data-waited'), false,
+        'cached image is not marked as animated')
+    wrap.remove()
 })
 
 test('a slow-loading image shows the placeholder after `delay`, ' +
 'then sharpens on load', async t => {
-    document.body.innerHTML += `
+    const wrap = mount(`
         <blur-hash
             id="slow"
             alt="slow image"
             width=30
             height=30
             delay="10"
-            src="/100.jpg"
-            placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
-        ></blur-hash>
-    `
+            placeholder="${PLACEHOLDER}"
+        >
+            <canvas width="30" height="30"></canvas>
+            <img alt="">
+        </blur-hash>
+    `)
 
-    const img = (await waitFor('#slow img')) as HTMLImageElement
-    const canvas = (await waitFor('#slow canvas')) as HTMLCanvasElement
+    const waiting = await waitFor('#slow[data-reveal="waiting"]')
+    t.ok(waiting, 'host enters waiting once the delay fires')
+    const img = waiting!.querySelector('img')!
+    t.equal(opacityOf(img), '0', 'img stays hidden while waiting')
 
-    // The image src 404s in this test harness, so it never loads and the
-    // debounce timer always wins the race.
-    await waitFor(null, null, () => (img.classList.contains('blurry') ?
-        img :
-        null))
-    t.ok(img.classList.contains('blurry'),
-        'placeholder is shown once the `delay` timer fires')
+    await waitForPaint(waiting!.querySelector('canvas')!)
+    t.ok(true, 'placeholder canvas is painted once the timer fires')
 
-    await waitForPaint(canvas)
-    t.ok(true, 'canvas is painted once the timer fires')
-
-    img.dispatchEvent(new Event('load'))
-    t.ok(img.classList.contains('sharp'),
-        'image is sharpened on load after showing the placeholder')
-    t.ok(!img.classList.contains('blurry'),
-        'blurry class is removed once sharpened')
+    img.src = PNG_1X1
+    const done = await waitFor('#slow[data-reveal="revealed"][data-waited]')
+    t.ok(done, 'image sharpens on load after showing the placeholder')
+    wrap.remove()
 })
 
 test('delay defaults to 100ms', async t => {
@@ -270,37 +320,222 @@ test('delay defaults to 100ms', async t => {
 
 test('without a `delay` attribute, cached images skip blur ' +
 '(default 100ms debounce)', async t => {
-    const dataUri = 'data:image/gif;base64,' +
-        'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+    await preload(GIF)
 
-    document.body.innerHTML += `
+    const wrap = mount(`
         <blur-hash
             id="defaultcached"
             alt="cached image, default delay"
             width=30
             height=30
-            src="${dataUri}"
-            placeholder="UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV"
+            src="${GIF}"
+            placeholder="${PLACEHOLDER}"
         ></blur-hash>
-    `
+    `)
 
-    const el = (await waitFor('#defaultcached')) as BlurHash
-    const img = (await waitFor('#defaultcached img')) as HTMLImageElement
+    const el = hostOf(wrap)
 
     t.equal(el.delay, 100,
         'delay defaults to 100 when the attribute is absent')
-
-    await img.decode()
-    img.classList.remove('blurry')
-    img.classList.remove('sharp')
-
-    el.blurUp('UHGIM_X900xC~XWFE0xt00o3%1oz-;t7i|IV', 30, 30)
-
-    t.ok(!img.classList.contains('blurry'),
-        'cached image does not get the blurry class')
-    t.ok(!img.classList.contains('sharp'),
-        'cached image does not get the sharp class')
+    t.equal(el.getAttribute('data-reveal'), 'instant',
+        'cached image skips the blur state')
+    t.equal(el.hasAttribute('data-waited'), false,
+        'cached image is not marked as animated')
+    wrap.remove()
 })
+
+test('AC2.1: a host waiting on its image reports pending', t => {
+    const wrap = mount(`
+        <blur-hash id="pending" alt="" delay="60000">
+            <img alt="">
+        </blur-hash>
+    `)
+    const el = hostOf(wrap)
+    t.equal(el.getAttribute('data-reveal'), 'pending',
+        'state is pending before the delay')
+    t.equal(opacityOf(el.querySelector('img')!), '0',
+        'img is hidden while pending')
+    wrap.remove()
+})
+
+test('AC2.1: after the delay, fill mode shows the --blur-hash-fill ' +
+'background', async t => {
+    const wrap = mount(`
+        <blur-hash
+            id="waiting"
+            alt=""
+            delay="10"
+            style="--blur-hash-fill: rgb(1, 2, 3)"
+        >
+            <img alt="">
+        </blur-hash>
+    `)
+    const el = await waitFor('#waiting[data-reveal="waiting"]')
+    t.ok(el, 'state moves to waiting after the delay')
+    t.equal(opacityOf(el!.querySelector('img')!), '0', 'img is still hidden')
+    t.equal(getComputedStyle(el!).backgroundColor, 'rgb(1, 2, 3)',
+        'fill color is shown while waiting')
+    wrap.remove()
+})
+
+test('AC2.1: a waited reveal is marked data-waited when it loads',
+    async t => {
+        const wrap = mount(`
+            <blur-hash id="revealed" alt="" delay="10">
+                <img alt="">
+            </blur-hash>
+        `)
+        const waiting = await waitFor('#revealed[data-reveal="waiting"]')
+        t.ok(waiting, 'host reached waiting before the image was set')
+        waiting!.querySelector('img')!.src = PNG_1X1
+        const done = await waitFor(
+            '#revealed[data-reveal="revealed"][data-waited]'
+        )
+        t.ok(done, 'reveal is marked data-waited after loading')
+        wrap.remove()
+    })
+
+test('AC2.2: a preloaded src is revealed instantly with no transition',
+    async t => {
+        await preload(PNG_2X1)
+
+        const wrap = mount(`
+            <blur-hash id="instant" alt="" src="${PNG_2X1}"></blur-hash>
+        `)
+        const el = hostOf(wrap)
+        const img = el.querySelector('img')!
+        t.equal(el.getAttribute('data-reveal'), 'instant',
+            'state is instant for a complete image')
+        t.equal(opacityOf(img), '1', 'img is visible immediately')
+        t.equal(getComputedStyle(img).transitionDuration, '0s',
+            'instant reveal has no transition')
+        wrap.remove()
+    })
+
+test('AC2.3: fill mode with no width or height renders without a canvas',
+    t => {
+        let wrap:HTMLElement|null = null
+        try {
+            wrap = mount(`
+                <blur-hash id="fill" alt="" src="${PNG_1X1}"></blur-hash>
+            `)
+        } catch (_err) {
+            wrap = null
+        }
+        t.ok(wrap, 'appending a fill-mode host does not throw')
+        const el = hostOf(wrap!)
+        t.ok(el.getAttribute('data-reveal'),
+            'connectedCallback ran and set a reveal state')
+        t.ok(el.querySelector('img'), 'the img is rendered')
+        t.equal(el.querySelector('canvas'), null,
+            'no canvas is rendered in fill mode')
+        wrap!.remove()
+    })
+
+test('AC2.4: a rejected decode still reveals', async t => {
+    const original = HTMLImageElement.prototype.decode
+    HTMLImageElement.prototype.decode = () => {
+        return Promise.reject(new Error('stub decode rejection'))
+    }
+
+    try {
+        const wrap = mount(`
+            <blur-hash id="reject" alt="" delay="10">
+                <img alt="">
+            </blur-hash>
+        `)
+        wrap.querySelector('img')!.src = PNG_1X1
+        const done = await waitFor('#reject[data-reveal="revealed"]')
+        t.ok(done, 'a decode rejection still moves to revealed')
+        wrap.remove()
+    } finally {
+        HTMLImageElement.prototype.decode = original
+    }
+})
+
+test('AC2.5: a failed load sets data-reveal error and hides the img',
+    async t => {
+        let errorEvents = 0
+        const wrap = document.createElement('div')
+        wrap.addEventListener('error', () => { errorEvents++ }, true)
+        wrap.innerHTML = `
+            <blur-hash id="broken" alt="" loading="eager"
+                src="/does-not-exist.png"></blur-hash>
+        `
+        document.body.appendChild(wrap)
+
+        const el = await waitFor('#broken[data-reveal="error"]', {
+            visible: false
+        })
+        t.ok(el, 'state is error after a failed load')
+        t.ok(errorEvents > 0,
+            'a capturing error listener on an ancestor is called')
+        t.equal(opacityOf(el!.querySelector('img')!), '0',
+            'img stays hidden on error')
+        wrap.remove()
+    })
+
+test('passthrough: referrerpolicy and crossorigin reach the img', t => {
+    const wrap = mount(`
+        <blur-hash
+            id="pass"
+            alt=""
+            src="${PNG_1X1}"
+            referrerpolicy="no-referrer"
+            crossorigin="anonymous"
+        ></blur-hash>
+    `)
+    const img = hostOf(wrap).querySelector('img')!
+    t.equal(img.referrerPolicy, 'no-referrer',
+        'referrerpolicy is set on the img')
+    t.equal(img.crossOrigin, 'anonymous',
+        'crossorigin is set on the img')
+    wrap.remove()
+})
+
+test('reset: a cached src is instant, and a stale load cannot flip it',
+    async t => {
+        const wrap = mount(`
+            <blur-hash id="reset" alt="" delay="10">
+                <img alt="">
+            </blur-hash>
+        `)
+        const el = hostOf(wrap)
+        // In flight: the old load is still pending when reset runs.
+        wrap.querySelector('img')!.src = PNG_1X1
+        el.reset({ src: PNG_2X1, alt: '' })
+        t.equal(el.getAttribute('data-reveal'), 'instant',
+            'reset to a cached src is instant')
+
+        await new Promise(resolve => setTimeout(resolve, 50))
+        t.equal(el.getAttribute('data-reveal'), 'instant',
+            'the stale load did not flip the state')
+        wrap.remove()
+    })
+
+test('reset: an uncached src returns a revealed host to pending',
+    async t => {
+        const wrap = mount(`
+            <blur-hash id="repending" alt="" src="${PNG_1X1}"></blur-hash>
+        `)
+        const el = hostOf(wrap)
+        // The PNG may already be cached, so the host can be `instant`
+        // before any load event. Wait for a settled (non-pending) state.
+        const settled = await waitFor('#repending', { visible: false },
+            () => {
+                const host = document.querySelector<HTMLElement>(
+                    '#repending'
+                )
+                const state = host?.getAttribute('data-reveal')
+                return (state && state !== 'pending') ? host : null
+            })
+        t.ok(settled, 'host is settled before reset')
+
+        el.reset({ src: '/reset-pending.png', alt: '' })
+        t.equal(el.getAttribute('data-reveal'), 'pending',
+            'reset returns the state to pending synchronously')
+        wrap.remove()
+    })
 
 test('all done', () => {
     // @ts-expect-error tests
