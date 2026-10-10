@@ -57,7 +57,7 @@
     "start": "vite",
     "toc": "markdown-toc --maxdepth 4 -i README.md",
     "preversion": "npm run lint",
-    "version": "npm run toc && auto-changelog -p --template keepachangelog --breaking-pattern 'BREAKING CHANGE:' && git add CHANGELOG.md README.md",
+    "version": "npm run toc && git add CHANGELOG.md README.md",
     "postversion": "git push --follow-tags && npm publish",
     "prepublishOnly": "npm run build"
   },
@@ -74,7 +74,6 @@
     "@substrate-system/tapout": "^0.0.41",
     "@substrate-system/tapzero": "^0.10.16",
     "@types/node": "^25.0.0",
-    "auto-changelog": "^2.4.0",
     "browserslist": "^4.24.0",
     "esbuild": "^0.28.0",
     "eslint": "^10.6.0",
