@@ -16,23 +16,43 @@ blur-hash {
         height: 100%;
         position: relative;
         top: -100%;
-        transition: opacity var(--blur-hash-time, 0.8s);
         object-fit: cover;
+    }
 
-        &.blurry {
-            opacity: 0;
-            filter: blur(30px);
-        }
+    /* fill mode: no canvas, the image is in normal flow */
+    &:not([placeholder]) img {
+        top: 0;
+    }
+}
 
-        &.sharp {
-            opacity: 1;
-            animation: sharpen var(--blur-hash-time, 0.8s) both;
-        }
+/*
+ * Only a defined element hides its image. Before definition (SSR,
+ * no JS) the <img> paints normally.
+ */
+blur-hash:defined {
+    & img {
+        opacity: 0;
+    }
 
-        &.instant {
-            opacity: 1;
-            transition: none;
-        }
+    &[data-reveal="waiting"]:not([placeholder]) {
+        background: var(--blur-hash-fill, transparent);
+    }
+
+    &[data-reveal="instant"] img,
+    &[data-reveal="revealed"] img {
+        opacity: 1;
+    }
+
+    &[data-waited] img {
+        transition: opacity var(--blur-hash-time, 0.8s);
+    }
+
+    &[placeholder][data-waited][data-reveal="revealed"] img {
+        animation: sharpen var(--blur-hash-time, 0.8s) both;
+    }
+
+    &[data-reveal="error"] img {
+        opacity: 0;
     }
 }
 
@@ -41,6 +61,6 @@ blur-hash {
         filter: blur(30px);
     }
     to {
-        filter: blur(0px)
+        filter: blur(0px);
     }
 }
