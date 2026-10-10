@@ -564,9 +564,10 @@ test('reset: a cached src is instant, and a stale load cannot flip it',
             'reset to a cached src is instant')
 
         // Wait for the stale load, and for its decode callback to run
-        await new Promise(resolve => {
+        const loaded = new Promise(resolve => {
             oldImg.addEventListener('load', resolve, { once: true })
         })
+        t.ok(await settlesInTime(loaded), 'the stale img loaded')
         await oldImg.decode().catch(() => {})
         t.equal(el.getAttribute('data-reveal'), 'instant',
             'the stale load did not flip the state')
