@@ -19,8 +19,9 @@
     "./css": "./dist/style.css",
     "./min/css": "./dist/style.min.css",
     "./html": {
-      "import": "./dist/render.js",
-      "require": "./dist/render.cjs"
+      "types": "./dist/src/html.d.ts",
+      "import": "./dist/html.js",
+      "require": "./dist/html.cjs"
     },
     "./hash": "./dist/bin/index.js",
     "./photon": "./dist/bin/photon.js",
@@ -37,12 +38,13 @@
   },
   "scripts": {
     "lint": "eslint \"./**/*.ts\"",
-    "build-tests": "esbuild test/index.ts --target=es2020 --bundle --keep-names > test/test-bundle.js",
-    "test": "npm run build && npm run build-tests && npm run test-gui && npm run test-bin && npm run test-api && npm run test-ssr",
+    "build-tests": "esbuild test/index.ts --target=es2020 --bundle --keep-names --loader:.css=text > test/test-bundle.js",
+    "test": "npm run build && npm run build-tests && npm run test-gui && npm run test-bin && npm run test-api && npm run test-ssr && npm run test-pack",
+    "test-pack": "node test/pack.mjs | tap-spec",
     "test-bin": "npm run build-bin && esbuild ./test/bin.ts > ./test/bin.js && node ./test/bin.js | tap-spec",
     "test-api": "esbuild ./test/api.ts --format=esm --platform=node > test/api.js && esbuild bin/*.ts --platform=node --format=esm --keep-names --outdir=bin && node ./test/api.js | tap-spec",
     "test-ssr": "esbuild ./test/ssr.ts --bundle --platform=node | node --input-type=module | tap-spec",
-    "test-gui": "esbuild ./test/index.ts --bundle | tapout | tap-spec",
+    "test-gui": "esbuild ./test/index.ts --bundle --loader:.css=text | tapout | tap-spec",
     "build-css": "lightningcss --browserslist src/index.css -o dist/style.css",
     "build-css:min": "lightningcss --browserslist --minify src/index.css -o dist/style.min.css",
     "build-cjs": "esbuild src/*.ts --format=cjs --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --out-extension:.js=.cjs --sourcemap",

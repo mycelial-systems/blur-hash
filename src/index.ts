@@ -1,6 +1,6 @@
 import { WebComponent } from '@substrate-system/web-component'
 import { decode } from 'blurhash'
-import { render } from './html.js'
+import { innerHTML } from './html.js'
 import { decodeDimensions } from './decode-dimensions.js'
 
 declare global {
@@ -10,37 +10,41 @@ declare global {
 }
 
 export type ImgAttrs = {
-    alt:string;
-    width:string|number;
-    height:string|number;
-    placeholder:string;
     src:string;
+    alt?:string|null;
+    // Absent -> fill mode (no canvas)
+    placeholder?:string|null;
+    // Decode size of the placeholder canvas; only used with placeholder
+    width?:string|number|null;
+    height?:string|number|null;
     srcset?:string|null;
     sizes?:string|null;
-    time?:number;
+    time?:string|number|null;
+    delay?:string|number|null;
     contentVisibility?:'visible'|'auto'|'hidden'|null;
     decoding?:'sync'|'async'|'auto'|null;
     loading?:'lazy'|'eager'|'auto'|null;
+    referrerpolicy?:ReferrerPolicy|null;
+    crossorigin?:''|'anonymous'|'use-credentials'|null;
 }
 
+/**
+ * The reveal state of the element, mirrored to the `data-reveal` host
+ * attribute. CSS keys all visibility rules off this attribute.
+ */
+export type RevealState =
+    'pending'|'instant'|'waiting'|'revealed'|'error'
+
 export class BlurHash extends WebComponent.create('blur-hash') {
-    time:number
+    time:number = 800
     rafId:number|null = null
     delay:number = 100
     blurTimer:ReturnType<typeof setTimeout>|null = null
+    // Bumped on every blurUp, so a stale reveal cannot flip the state
+    generation:number = 0
 
-    constructor () {
-        super()
-        const w = this.getAttribute('width')
-        const h = this.getAttribute('height')
-        const time = this.getAttribute('time')
-        this.time = time ? parseInt(time) : 800
-
-        this.style.width = '' + w
-        this.style.height = '' + h
-
-        document.body.style.setProperty('--blur-hash-time',
-            time ? '.' + (parseInt(time) / 1000 + 's') : '0.8s')
+    setReveal (state:RevealState):void {
+        this.setAttribute('data-reveal', state)
     }
 
     /**
@@ -55,10 +59,14 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         if (attrs.height) this.style.height = '' + attrs.height
 
         const width = (attrs.width ?
-            (typeof attrs.width === 'string' ? parseInt(attrs.width, 10) : attrs.width) :
+            (typeof attrs.width === 'string' ?
+                parseInt(attrs.width, 10) :
+                attrs.width) :
             parseInt(this.style.width, 10))
         const height = (attrs.height ?
-            (typeof attrs.height === 'string' ? parseInt(attrs.height, 10) : attrs.height) :
+            (typeof attrs.height === 'string' ?
+                parseInt(attrs.height, 10) :
+                attrs.height) :
             parseInt(this.style.height, 10))
 
         this.clearBlurTimer()
@@ -68,13 +76,17 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         const { placeholder, src: newSrc } = attrs
 
         this.setAttribute('src', newSrc)
-        this.setAttribute('placeholder', placeholder)
+        if (placeholder) {
+            this.setAttribute('placeholder', placeholder)
+        } else {
+            this.removeAttribute('placeholder')
+        }
 
         const img = this.querySelector('img')!
         if (attrs.srcset) img.setAttribute('srcset', attrs.srcset)
         if (attrs.sizes) img.setAttribute('sizes', attrs.sizes)
 
-        this.blurUp(placeholder, width, height)
+        this.blurUp(placeholder ?? null, width, height)
     }
 
     clearBlurTimer ():void {
@@ -117,81 +129,115 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         this.clearBlurTimer()
     }
 
-    blurUp (placeholder:string, width:number, height:number):void {
-        const img = this.qs('img')!
+    blurUp (placeholder:string|null, width:number, height:number):void {
+        const img = this.qs('img')
+        if (!img) return
+
+        const generation = ++this.generation
+        this.clearBlurTimer()
+        this.removeAttribute('data-waited')
 
         if (img.complete && img.naturalWidth > 0) {
-            img.classList.remove('blurry')
+            this.setReveal('instant')
             return
         }
 
-        let placeholderShown = false
+        this.setReveal('pending')
+        let waited = false
 
-        const onLoad = () => {
+        // A replaced img can still fire these after a newer generation
+        // started. Check the generation first, so a stale event never
+        // cancels the newer generation's delay timer.
+        img.addEventListener('load', () => {
+            if (generation !== this.generation) return
             this.clearBlurTimer()
-            img.classList.remove('blurry')
-            if (placeholderShown) img.classList.add('sharp')
-        }
-        img.addEventListener('load', onLoad, { once: true })
+            const show = () => {
+                if (generation !== this.generation) return
+                if (waited) this.setAttribute('data-waited', '')
+                this.setReveal('revealed')
+            }
+            // A decode rejection still reveals.
+            img.decode().then(show, show)
+        }, { once: true })
+
+        // Not stopped or re-dispatched: ancestors can listen with
+        // a capturing listener.
+        img.addEventListener('error', () => {
+            if (generation !== this.generation) return
+            this.clearBlurTimer()
+            this.setReveal('error')
+        }, { once: true })
 
         this.blurTimer = setTimeout(() => {
             this.blurTimer = null
-            if (!this.isConnected) return
-            placeholderShown = true
-            img.classList.add('blurry')
-            this.scheduleDecode(placeholder, width, height)
+            if (!this.isConnected || generation !== this.generation) return
+            waited = true
+            this.setReveal('waiting')
+            if (placeholder) this.scheduleDecode(placeholder, width, height)
         }, this.delay)
     }
 
     connectedCallback () {
-        const width = parseInt(this.getAttribute('width') ?? '')
-        const height = parseInt(this.getAttribute('height') ?? '')
         const placeholder = this.getAttribute('placeholder')
-        if (!placeholder) throw new Error('Missing placeholder')
-        if (!width) throw new Error('Missing width')
-        if (!height) throw new Error('Missing height')
+        const time = this.getAttribute('time')
+        this.time = time ? parseInt(time, 10) : 800
+        // Only an explicit attribute sets the inline value. An inline
+        // property would override a `--blur-hash-time` from the stylesheet.
+        if (time) {
+            this.style.setProperty('--blur-hash-time', `${this.time / 1000}s`)
+        }
 
-        const d = this.getAttribute('delay')
-        this.delay = d ? parseInt(d, 10) : 100
+        const delay = this.getAttribute('delay')
+        this.delay = delay ? parseInt(delay, 10) : 100
 
-        // don't render again if we dont have to
-        if (!this.innerHTML) {
+        let width = 0
+        let height = 0
+        if (placeholder) {
+            const w = this.getAttribute('width')
+            const h = this.getAttribute('height')
+            width = parseInt(w ?? '', 10)
+            height = parseInt(h ?? '', 10)
+            if (!width) throw new Error('Missing width')
+            if (!height) throw new Error('Missing height')
+            // Kept from 0.1.x: a unitless value is ignored by CSS;
+            // a value with a unit sizes the host.
+            this.style.width = '' + w
+            this.style.height = '' + h
+        }
+
+        // Don't render again if SSR children are present.
+        if (!this.innerHTML.trim()) {
             this.innerHTML = this.render()
         }
 
         this.blurUp(placeholder, width, height)
     }
 
-    static html (attrs:ImgAttrs & { classes?:string }) {
-        return render(attrs)
+    static html (attrs:ImgAttrs & { classes?:string|null }):string {
+        return innerHTML(attrs)
     }
 
     /**
-     * Use the attributes to create HTML.
+     * Use the attributes to create the children HTML.
      */
     render ():string {
-        const srcset = this.getAttribute('srcset')
-        const width = this.getAttribute('width')
-        const height = this.getAttribute('height')
-        const time = this.getAttribute('time')
-        const classes = this.classList.toString()
-        const placeholder = this.getAttribute('placeholder')
-        this.time = time ? parseInt(time) : 800
         const src = this.getAttribute('src')
-        const alt = this.getAttribute('alt')
-        if (!placeholder) throw new Error('not placeholder')
-        if (!width || !height) throw new Error('not width or not height')
         if (!src) throw new Error('Not src')
-        if (!alt) throw new Error('Not alt')
 
         return BlurHash.html({
-            classes,
-            srcset,
-            width,
-            height,
             src,
-            alt,
-            placeholder
+            alt: this.getAttribute('alt'),
+            placeholder: this.getAttribute('placeholder'),
+            width: this.getAttribute('width'),
+            height: this.getAttribute('height'),
+            srcset: this.getAttribute('srcset'),
+            sizes: this.getAttribute('sizes'),
+            loading: this.getAttribute('loading') as ImgAttrs['loading'],
+            decoding: this.getAttribute('decoding') as ImgAttrs['decoding'],
+            referrerpolicy: this.getAttribute('referrerpolicy') as
+                ImgAttrs['referrerpolicy'],
+            crossorigin: this.getAttribute('crossorigin') as
+                ImgAttrs['crossorigin']
         })
     }
 }
