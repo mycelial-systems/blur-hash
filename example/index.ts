@@ -37,6 +37,11 @@ const explicitDelayTag = `<blur-hash
     delay="500"
 ></blur-hash>`
 
+const fillModeTag = `<blur-hash
+    alt="cool cat"
+    src="${imgUrl}"
+></blur-hash>`
+
 document.body.innerHTML += `
     <div>
         <p>no <code>delay</code> attribute &mdash; defaults to 100ms</p>
@@ -77,6 +82,20 @@ document.body.innerHTML += `
             alt="cool cat"
             src=${imgUrl}
             delay="500"
+        ></blur-hash>
+    </div>
+
+    <hr />
+
+    <div>
+        <p>
+            fill mode &mdash; no <code>placeholder</code>,
+            <code>width</code>, or <code>height</code>
+        </p>
+        <pre>${escapeHtml(fillModeTag)}</pre>
+        <blur-hash
+            alt="cool cat"
+            src=${imgUrl}
         ></blur-hash>
     </div>
 
