@@ -57,6 +57,14 @@ test('the ./html export resolves from the packed tarball', t => {
         const typesPath = pkg.exports['./html'].types
         t.ok(existsSync(join(pkgDir, typesPath)),
             'the types condition points at an unpacked file')
+
+        // The main entry: without a types condition (or with a path the
+        // build does not emit), consumers get TS7016 / implicit any.
+        const mainTypes = pkg.exports['.'].types
+        t.ok(mainTypes && existsSync(join(pkgDir, mainTypes)),
+            'the main export has a types condition that is unpacked')
+        t.ok(pkg.types && existsSync(join(pkgDir, pkg.types)),
+            'the top-level types field points at an unpacked file')
     } finally {
         rmSync(dir, { recursive: true, force: true })
     }

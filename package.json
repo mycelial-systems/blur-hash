@@ -13,6 +13,7 @@
   ],
   "exports": {
     ".": {
+      "types": "./dist/src/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
@@ -98,7 +99,7 @@
   },
   "author": "nichoth <nichoth@nichoth.com> (https://nichoth.com)",
   "license": "SEE LICENSE IN LICENSE",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/src/index.d.ts",
   "directories": {
     "example": "example",
     "test": "test"
