@@ -345,6 +345,8 @@ an optional new placeholder string, and all other attributes. Leave out
 
 `.reset` ignores `time` and `delay`. Set them as attributes on the element.
 The element reads them when it connects, and `.reset` keeps those values.
+Changing `time` or `delay` after the element connects has no effect until
+it connects again.
 
 If `width` and `height` are not passed in, it will keep the existing width
 and height.
