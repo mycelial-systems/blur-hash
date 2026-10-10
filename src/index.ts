@@ -1,6 +1,6 @@
 import { WebComponent } from '@substrate-system/web-component'
 import { decode } from 'blurhash'
-import { render } from './html.js'
+import { innerHTML } from './html.js'
 import { decodeDimensions } from './decode-dimensions.js'
 
 declare global {
@@ -10,17 +10,22 @@ declare global {
 }
 
 export type ImgAttrs = {
-    alt:string;
-    width:string|number;
-    height:string|number;
-    placeholder:string;
     src:string;
+    alt?:string|null;
+    // Absent -> fill mode (no canvas)
+    placeholder?:string|null;
+    // Decode size of the placeholder canvas; only used with placeholder
+    width?:string|number|null;
+    height?:string|number|null;
     srcset?:string|null;
     sizes?:string|null;
-    time?:number;
+    time?:string|number|null;
+    delay?:string|number|null;
     contentVisibility?:'visible'|'auto'|'hidden'|null;
     decoding?:'sync'|'async'|'auto'|null;
     loading?:'lazy'|'eager'|'auto'|null;
+    referrerpolicy?:ReferrerPolicy|null;
+    crossorigin?:''|'anonymous'|'use-credentials'|null;
 }
 
 export class BlurHash extends WebComponent.create('blur-hash') {
@@ -68,13 +73,17 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         const { placeholder, src: newSrc } = attrs
 
         this.setAttribute('src', newSrc)
-        this.setAttribute('placeholder', placeholder)
+        if (placeholder) {
+            this.setAttribute('placeholder', placeholder)
+        } else {
+            this.removeAttribute('placeholder')
+        }
 
         const img = this.querySelector('img')!
         if (attrs.srcset) img.setAttribute('srcset', attrs.srcset)
         if (attrs.sizes) img.setAttribute('sizes', attrs.sizes)
 
-        this.blurUp(placeholder, width, height)
+        this.blurUp(placeholder ?? null, width, height)
     }
 
     clearBlurTimer ():void {
@@ -117,7 +126,7 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         this.clearBlurTimer()
     }
 
-    blurUp (placeholder:string, width:number, height:number):void {
+    blurUp (placeholder:string|null, width:number, height:number):void {
         const img = this.qs('img')!
 
         if (img.complete && img.naturalWidth > 0) {
@@ -139,7 +148,7 @@ export class BlurHash extends WebComponent.create('blur-hash') {
             if (!this.isConnected) return
             placeholderShown = true
             img.classList.add('blurry')
-            this.scheduleDecode(placeholder, width, height)
+            if (placeholder) this.scheduleDecode(placeholder, width, height)
         }, this.delay)
     }
 
@@ -162,36 +171,31 @@ export class BlurHash extends WebComponent.create('blur-hash') {
         this.blurUp(placeholder, width, height)
     }
 
-    static html (attrs:ImgAttrs & { classes?:string }) {
-        return render(attrs)
+    static html (attrs:ImgAttrs & { classes?:string|null }):string {
+        return innerHTML(attrs)
     }
 
     /**
-     * Use the attributes to create HTML.
+     * Use the attributes to create the children HTML.
      */
     render ():string {
-        const srcset = this.getAttribute('srcset')
-        const width = this.getAttribute('width')
-        const height = this.getAttribute('height')
-        const time = this.getAttribute('time')
-        const classes = this.classList.toString()
-        const placeholder = this.getAttribute('placeholder')
-        this.time = time ? parseInt(time) : 800
         const src = this.getAttribute('src')
-        const alt = this.getAttribute('alt')
-        if (!placeholder) throw new Error('not placeholder')
-        if (!width || !height) throw new Error('not width or not height')
         if (!src) throw new Error('Not src')
-        if (!alt) throw new Error('Not alt')
 
         return BlurHash.html({
-            classes,
-            srcset,
-            width,
-            height,
             src,
-            alt,
-            placeholder
+            alt: this.getAttribute('alt'),
+            placeholder: this.getAttribute('placeholder'),
+            width: this.getAttribute('width'),
+            height: this.getAttribute('height'),
+            srcset: this.getAttribute('srcset'),
+            sizes: this.getAttribute('sizes'),
+            loading: this.getAttribute('loading') as ImgAttrs['loading'],
+            decoding: this.getAttribute('decoding') as ImgAttrs['decoding'],
+            referrerpolicy: this.getAttribute('referrerpolicy') as
+                ImgAttrs['referrerpolicy'],
+            crossorigin: this.getAttribute('crossorigin') as
+                ImgAttrs['crossorigin']
         })
     }
 }
