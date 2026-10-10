@@ -34,9 +34,17 @@ function unescapeAttribute (value:string):string {
 }
 
 test('render() without a placeholder does not throw', t => {
-    const out = render({ src: 'a.jpg', alt: 'x' })
+    const out = render({ src: 'a.jpg' })
     t.ok(out.includes('<img'), 'emits an img')
     t.ok(!out.includes('<canvas'), 'fill mode emits no canvas')
+})
+
+test('a missing alt falls back to an empty alt on img and host', t => {
+    const out = outerHTML({ src: 'a.jpg' })
+    const img = openTag(out, 'img')!
+    t.equal(attrValue(img, 'alt'), '', 'img has an empty alt')
+    const host = openTag(out, 'blur-hash')!
+    t.equal(attrValue(host, 'alt'), '', 'host has an empty alt')
 })
 
 test('outerHTML() without placeholder, width, height does not throw', t => {

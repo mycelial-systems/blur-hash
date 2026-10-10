@@ -1,5 +1,12 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import {
+    mkdtempSync,
+    mkdirSync,
+    writeFileSync,
+    readFileSync,
+    existsSync,
+    rmSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from '@substrate-system/tapzero'
@@ -10,7 +17,8 @@ test('the ./html export resolves from the packed tarball', t => {
         const out = execFileSync('npm', [
             'pack', '--json', '--pack-destination', dir
         ], { encoding: 'utf8' })
-        // npm 10+ keys the output by package name; older npm used an array
+        // newer npm keys the output by package name; older npm returns
+        // an array
         const parsed = JSON.parse(out)
         const info = Array.isArray(parsed) ?
             parsed[0] :
@@ -23,14 +31,32 @@ test('the ./html export resolves from the packed tarball', t => {
             '-xzf', join(dir, filename), '-C', pkgDir,
             '--strip-components=1'
         ])
+
         writeFileSync(join(dir, 'check.mjs'),
             "import { outerHTML } from '@substrate-system/blur-hash/html'\n" +
             'process.stdout.write(typeof outerHTML)\n')
-        const result = execFileSync('node', [join(dir, 'check.mjs')], {
+        const esm = execFileSync('node', [join(dir, 'check.mjs')], {
             encoding: 'utf8',
             cwd: dir
         })
-        t.equal(result, 'function', 'imports outerHTML from /html')
+        t.equal(esm, 'function', 'import condition exports outerHTML')
+
+        writeFileSync(join(dir, 'check.cjs'),
+            "const { outerHTML } = " +
+            "require('@substrate-system/blur-hash/html')\n" +
+            'process.stdout.write(typeof outerHTML)\n')
+        const cjs = execFileSync('node', [join(dir, 'check.cjs')], {
+            encoding: 'utf8',
+            cwd: dir
+        })
+        t.equal(cjs, 'function', 'require condition exports outerHTML')
+
+        const pkg = JSON.parse(readFileSync(
+            join(pkgDir, 'package.json'), 'utf8'
+        ))
+        const typesPath = pkg.exports['./html'].types
+        t.ok(existsSync(join(pkgDir, typesPath)),
+            'the types condition points at an unpacked file')
     } finally {
         rmSync(dir, { recursive: true, force: true })
     }
