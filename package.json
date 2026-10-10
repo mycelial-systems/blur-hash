@@ -19,8 +19,9 @@
     "./css": "./dist/style.css",
     "./min/css": "./dist/style.min.css",
     "./html": {
-      "import": "./dist/render.js",
-      "require": "./dist/render.cjs"
+      "types": "./dist/src/html.d.ts",
+      "import": "./dist/html.js",
+      "require": "./dist/html.cjs"
     },
     "./hash": "./dist/bin/index.js",
     "./photon": "./dist/bin/photon.js",
@@ -38,7 +39,8 @@
   "scripts": {
     "lint": "eslint \"./**/*.ts\"",
     "build-tests": "esbuild test/index.ts --target=es2020 --bundle --keep-names > test/test-bundle.js",
-    "test": "npm run build && npm run build-tests && npm run test-gui && npm run test-bin && npm run test-api && npm run test-ssr",
+    "test": "npm run build && npm run build-tests && npm run test-gui && npm run test-bin && npm run test-api && npm run test-ssr && npm run test-pack",
+    "test-pack": "node test/pack.mjs | tap-spec",
     "test-bin": "npm run build-bin && esbuild ./test/bin.ts > ./test/bin.js && node ./test/bin.js | tap-spec",
     "test-api": "esbuild ./test/api.ts --format=esm --platform=node > test/api.js && esbuild bin/*.ts --platform=node --format=esm --keep-names --outdir=bin && node ./test/api.js | tap-spec",
     "test-ssr": "esbuild ./test/ssr.ts --bundle --platform=node | node --input-type=module | tap-spec",
