@@ -41,6 +41,11 @@ exported as `./html`), and Node/workerd hash generation (`bin/`).
   ~1000 ms of silence, dropping any failure not yet printed. Bound every
   wait a regression could leave hanging by `BAILOUT_MS` (800) in
   `test/index.ts`; `waitFor` from `@substrate-system/dom` defaults to
-  5000 ms.
+  5000 ms. Under `npm run test-gui`, tap-spec exits 1 on the missing
+  plan line but prints no failing assertion, so "Tests auto-finished"
+  in the output means a wait hung.
+- A thrown error in a tapzero test stops the run with no `not ok` line.
+  Use `waitBounded` and `waitForPaint` in `test/index.ts`: they resolve
+  null or false on timeout, so the next assertion fails by name.
 - `test/pack.mjs` resolves `./html` from an `npm pack` tarball. Run
   `npm run test-pack` after touching `exports` or the build output layout.
