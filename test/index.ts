@@ -41,6 +41,23 @@ function opacityOf (el:Element):string {
     return getComputedStyle(el).opacity
 }
 
+// Bailout for a wait that a regression would leave hanging. It must stay
+// below tapout's idle auto-finish (1000ms for the default 5000ms run
+// timeout). A longer wait lets tapout end the run silently, with exit 0,
+// before the failure is reported.
+const BAILOUT_MS = 800
+
+// Resolve true when the promise settles, or false after BAILOUT_MS.
+function settlesInTime (p:Promise<unknown>):Promise<boolean> {
+    return new Promise(resolve => {
+        const timer = setTimeout(() => resolve(false), BAILOUT_MS)
+        p.then(() => {
+            clearTimeout(timer)
+            resolve(true)
+        })
+    })
+}
+
 // Decode an image so it is in the document's list of available images,
 // which makes a later <img> with the same src complete synchronously.
 async function preload (src:string):Promise<void> {
@@ -519,6 +536,53 @@ test('reset: a cached src is instant, and a stale load cannot flip it',
         wrap.remove()
     })
 
+test('reset: an old decode that settles after reset cannot reveal',
+    async t => {
+        // Control when decode settles, so reset can run after the old
+        // img's load but before its decode resolves.
+        const original = HTMLImageElement.prototype.decode
+        let settleDecode:() => void = () => {}
+        const oldDecode = new Promise<void>(resolve => {
+            settleDecode = resolve
+        })
+        let onDecodeCalled:() => void = () => {}
+        const decodeCalled = new Promise<void>(resolve => {
+            onDecodeCalled = resolve
+        })
+        HTMLImageElement.prototype.decode = () => {
+            onDecodeCalled()
+            return oldDecode
+        }
+
+        try {
+            const wrap = mount(`
+                <blur-hash id="decode-window" alt="">
+                    <img alt="">
+                </blur-hash>
+            `)
+            const el = hostOf(wrap)
+            wrap.querySelector('img')!.src = PNG_1X1
+            t.ok(await settlesInTime(decodeCalled),
+                'the old load called decode')
+
+            // Uncached, so the new generation is pending
+            el.reset({ src: '/decode-window.png', alt: '' })
+            t.equal(el.getAttribute('data-reveal'), 'pending',
+                'reset returns the state to pending')
+
+            // The component's handlers on oldDecode were attached first,
+            // so they run before this await resumes. Only microtasks run
+            // in between, so no event from the new img can interleave.
+            settleDecode()
+            await oldDecode
+            t.equal(el.getAttribute('data-reveal'), 'pending',
+                'the old decode settling did not reveal the new image')
+            wrap.remove()
+        } finally {
+            HTMLImageElement.prototype.decode = original
+        }
+    })
+
 test('reset: an uncached src returns a settled host to pending',
     async t => {
         const wrap = mount(`
@@ -546,6 +610,7 @@ test('reset: an uncached src returns a settled host to pending',
 // Mount a host with an img, then replace that img with one that has no
 // src. A src-less img never fires load or error, so the new generation's
 // delay is the only thing that can settle the host. The old img is stale.
+// The 300ms delay must stay below BAILOUT_MS.
 function mountStaleImg ():{
     wrap:HTMLElement;
     el:BlurHash;
@@ -570,7 +635,8 @@ test('stale load: a late load of a replaced img keeps the new delay',
         t.equal(el.getAttribute('data-reveal'), 'pending',
             'the stale load did not change the state')
         const waiting = await waitFor('#stale[data-reveal="waiting"]', {
-            visible: false
+            visible: false,
+            timeout: BAILOUT_MS
         }).catch(() => null)
         t.ok(waiting, 'the new delay still moves the host to waiting')
         wrap.remove()
@@ -584,7 +650,8 @@ test('stale error: a late error on a replaced img keeps the new delay',
         t.equal(el.getAttribute('data-reveal'), 'pending',
             'the stale error did not change the state')
         const waiting = await waitFor('#stale[data-reveal="waiting"]', {
-            visible: false
+            visible: false,
+            timeout: BAILOUT_MS
         }).catch(() => null)
         t.ok(waiting, 'the new delay still moves the host to waiting')
         wrap.remove()
