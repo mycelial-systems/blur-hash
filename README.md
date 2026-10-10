@@ -41,6 +41,9 @@ shown and the image cross-fades to sharp once it loads.
     + [copy](#copy)
     + [HTML](#html)
 - [Use](#use)
+  * [Modes](#modes)
+  * [Reveal states](#reveal-states)
+  * [Upgrading from 0.1.x](#upgrading-from-01x)
   * [Server-side rendering](#server-side-rendering)
 - [API](#api)
   * [Attributes](#attributes)
@@ -109,7 +112,7 @@ Use the tag in HTML.
 ```html
 <div>
     <blur-hash
-        time="0.6s"
+        time="600"
         alt="cool cat"
         placeholder="LEHV6nWB2yk8pyo0adR*.7kCMdnj"
         src="/example/cat.png"
@@ -140,15 +143,85 @@ BlurHash.define()
 ></blur-hash>
 ```
 
+### Modes
+
+The `placeholder` attribute picks the mode.
+
+Placeholder mode sets `placeholder` to a blurhash string. The element paints
+the hash into a `<canvas>` as the blurry placeholder. It also needs `width`
+and `height`, and it throws on connect if either is missing. They set the
+canvas aspect ratio. The hash is decoded at no more than 32px on the long
+edge.
+
+Fill mode leaves out `placeholder`. There is no canvas, and the image sits in
+normal flow. While the element is waiting, its background is
+`--blur-hash-fill`. Size the element with CSS in fill mode, because `width`
+and `height` are only read in placeholder mode.
+
+Unitless `width` and `height` values are ignored by CSS when they size the
+host. Add a unit, like `width="100px"`, to size the element.
+
+Calling [`.reset`](#reset) without a `placeholder` switches the element to
+fill mode.
+
+### Reveal states
+
+The element sets a `data-reveal` attribute on itself to track the blur-up.
+The stylesheet keys its rules off this attribute, and you can read it too.
+
+1. `pending`: the image is loading, and the `delay` timer has not fired.
+2. `instant`: the image was already complete (cached) when the element
+   connected or was reset. It shows right away, with no animation.
+3. `waiting`: the `delay` timer fired first. In placeholder mode, the blurhash
+   is painted on the next frame. In fill mode, the host background is
+   `--blur-hash-fill`.
+4. `revealed`: the image loaded and decoded.
+5. `error`: the image failed to load.
+
+Once the element is defined, the `<img>` has opacity 0 until `data-reveal` is
+`instant` or `revealed`, so it stays hidden until it has loaded and decoded.
+A partly loaded image never paints.
+
+The `data-waited` attribute is set when the timer fired before the image
+loaded, and the image then revealed. The cross-fade only runs in that case,
+and so does the sharpen animation, which is placeholder mode only. `.reset`
+removes `data-waited` before it starts again.
+
+A load error leaves the `<img>` hidden. In fill mode that is an empty box,
+with no `--blur-hash-fill` background, because `data-reveal` is `error`, not
+`waiting`. In placeholder mode, a load error after `delay` leaves the painted
+blurhash visible, and an error before `delay` leaves an unpainted canvas.
+Consumers who care should handle the native `error` event with a capturing
+listener on an ancestor, like `document.addEventListener('error', fn, true)`.
+The `error` event does not bubble.
+
+### Upgrading from 0.1.x
+
+Version 0.2.0 removes the `.blurry`, `.sharp`, and `.instant` classes. In
+0.1.x, the JS toggled `.blurry` and `.sharp` on the inner `<img>`. `.instant`
+was only in the stylesheet, and the JS never added it. Now the host carries
+the `data-reveal` and `data-waited` attributes instead. See
+[Reveal states](#reveal-states).
+
+1. `blur-hash img.blurry` -> `blur-hash[data-reveal="waiting"] img`
+2. `blur-hash img.sharp` -> `blur-hash[data-waited][data-reveal="revealed"] img`
+
+If your CSS still targets the old classes, those rules stop matching. There is
+no error, so check your stylesheets after you upgrade.
+
+There is also a behavior change. Once the element is defined, the `<img>`
+stays hidden (opacity 0) until it has loaded and decoded. In 0.1.x, the image
+could paint while it was still loading.
+
 ### Server-side rendering
 
-This module exposes a `render` function at `/html`. It returns a plain string
-of HTML.
+Import `outerHTML` from `/html` to get the whole element as a string. It
+includes the `<blur-hash>` host, with its attributes.
 
 ```js
-import { render } from '@substrate-system/blur-hash/html'
+import { outerHTML } from '@substrate-system/blur-hash/html'
 
-const htmlString = render({
+const htmlString = outerHTML({
     alt: 'hello',
     width: 30,
     height: 30,
@@ -157,43 +230,70 @@ const htmlString = render({
 })
 ```
 
+Attribute values are escaped for double-quoted attributes (`& " ' < >`), so
+it is safe to pass user-provided `alt` text. Pass a `classes` string to set
+the host's `class` attribute.
+
+Until the element is defined, or if JS never runs, the server-rendered
+`<img>` paints normally. When the element connects, it reuses the
+server-rendered children and does not render them again.
+
+`innerHTML` returns only the children (a `<canvas>` in placeholder mode, then
+the `<img>`), if you want to write the host yourself. `render` is kept for
+compatibility. It returns `outerHTML` outside a browser and `innerHTML` in
+one. Use `outerHTML` for SSR.
+
 ## API
 
 ### Attributes
 
-The required attributes are `alt`, `src`, `placeholder`, `width`, and `height`.
+The only required attribute is `src`. `width` and `height` are required in
+placeholder mode.
 
 ```ts
-type Attrs = {
-  alt:string;
-  width:string|number;
-  height:string|number;
-  placeholder:string;
+type ImgAttrs = {
   src:string;
+  alt?:string|null;
+  placeholder?:string|null;
+  width?:string|number|null;
+  height?:string|number|null;
   srcset?:string|null;
   sizes?:string|null;
-  time?:number;
+  time?:string|number|null;
+  delay?:string|number|null;
   contentVisibility?:'visible'|'auto'|'hidden'|null;
   decoding?:'sync'|'async'|'auto'|null;
   loading?:'lazy'|'eager'|'auto'|null;
+  referrerpolicy?:ReferrerPolicy|null;
+  crossorigin?:''|'anonymous'|'use-credentials'|null;
 }
 ```
 
-`delay` is a separate, plain HTML attribute (not part of the `Attrs` type
-above, and not passed to [`.reset`](#reset)) -- see below.
+`delay` is a plain HTML attribute, like the others. It is also part of the
+type above, so it can go in the [SSR](#server-side-rendering) helpers.
 
 --------------------------------------
 
 #### other attributes
 
+The element copies `alt`, `srcset`, `sizes`, `loading`, `decoding`,
+`referrerpolicy`, and `crossorigin` from itself to the `<img>` it renders.
+`loading` defaults to `lazy`, and `decoding` defaults to `async`.
+
 #### time
 
-The time for css transitions and animation. This is set as a CSS variable.
-Default is `0.8s`.
+The transition time for the blur-up, in milliseconds. Default is `800`.
+
+Setting `time` writes `--blur-hash-time` onto the element as an inline style,
+in seconds. For example, `time="600"` sets `0.6s`. An inline value overrides
+any `--blur-hash-time` in your stylesheet. Without the attribute, the
+stylesheet value applies, and if there is none, the default is `0.8s`.
 
 #### width & height
 
-The dimensions for the image
+Only used in placeholder mode, where both are required. Fill mode ignores
+them. They set the canvas aspect ratio, and a value with a unit, like
+`100px`, also sizes the host. See [Modes](#modes).
 
 #### delay
 
@@ -240,7 +340,13 @@ the default of `100`ms.
 ### `.reset`
 
 Change the image, and do the blur-up thing again. Takes a new `src` string,
-new placeholder string, and all other attributes.
+an optional new placeholder string, and all other attributes. Leave out
+`placeholder` to switch the element to fill mode.
+
+`.reset` ignores `time` and `delay`. Set them as attributes on the element.
+The element reads them when it connects, and `.reset` keeps those values.
+Changing `time` or `delay` after the element connects has no effect until
+it connects again.
 
 If `width` and `height` are not passed in, it will keep the existing width
 and height.
@@ -248,16 +354,19 @@ and height.
 ```ts
 reset (attributes:{
   src:string;
-  alt:string;
-  placeholder:string;
-  width?:string;
-  height?:string;
+  alt?:string|null;
+  placeholder?:string|null;
+  width?:string|number;
+  height?:string|number;
   srcset?:string|null;
   sizes?:string|null;
-  time?:number;
+  time?:string|number|null;
+  delay?:string|number|null;
   contentVisibility?:'visible'|'auto'|'hidden'|null;
   decoding?:'sync'|'async'|'auto'|null;
   loading?:'lazy'|'eager'|'auto'|null;
+  referrerpolicy?:ReferrerPolicy|null;
+  crossorigin?:''|'anonymous'|'use-credentials'|null;
 }):void
 ```
 
@@ -292,7 +401,7 @@ import '@substrate-system/blur-hash/css'
 
 Or minified:
 ```js
-import '@substrate-system/blur-hash/css/min'
+import '@substrate-system/blur-hash/min/css'
 ```
 
 ### variables
@@ -300,9 +409,12 @@ import '@substrate-system/blur-hash/css/min'
 __CSS variables__
 
 * `--blur-hash-time` -- the transition time for animating blurry -> sharp,
-  default is `0.8s`
-* `--blur-hash-opactiy` -- the opacity to use for the placeholder image,
+  default is `0.8s`. The [`time`](#time) attribute sets this inline, and an
+  inline value overrides the stylesheet.
+* `--blur-hash-opacity` -- the opacity to use for the placeholder canvas,
   default is `0.4`
+* `--blur-hash-fill` -- the background behind the image in fill mode while
+  the element is waiting, default is `transparent`
 
 
 ---

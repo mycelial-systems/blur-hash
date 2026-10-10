@@ -37,15 +37,15 @@ const explicitDelayTag = `<blur-hash
     delay="500"
 ></blur-hash>`
 
-// Fill mode needs a size, and a fill color shows only while waiting.
-// The delay keeps the waiting state on screen long enough to see.
-const fillModeStyle = 'display: block; width: 400px; height: 400px; ' +
+// Fill mode needs a size. The fill color shows only while a slow load is
+// waiting, after the delay and before the image loads. To see it, throttle
+// the network in devtools.
+const fillModeStyle = 'width: 400px; height: 400px; ' +
     '--blur-hash-fill: var(--example-fill)'
 
 const fillModeTag = `<blur-hash
     alt="cool cat"
     src="${imgUrl}"
-    delay="1000"
     style="${fillModeStyle}"
 ></blur-hash>`
 
@@ -103,7 +103,6 @@ document.body.innerHTML += `
         <blur-hash
             alt="cool cat"
             src=${imgUrl}
-            delay="1000"
             style="${fillModeStyle}"
         ></blur-hash>
     </div>
